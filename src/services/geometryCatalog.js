@@ -119,6 +119,7 @@ export const GEOMETRY_TYPES = {
       const geom = new THREE.BufferGeometry()
       geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
       geom.computeVertexNormals()
+      geom.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((positions.length / 3) * 2), 2))
       return geom
     }
   },
@@ -186,6 +187,7 @@ export const GEOMETRY_TYPES = {
       const geom = new THREE.BufferGeometry()
       geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
       geom.computeVertexNormals()
+      geom.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((positions.length / 3) * 2), 2))
       return geom
     }
   },
@@ -556,6 +558,7 @@ export const GEOMETRY_TYPES = {
       const geom = new THREE.BufferGeometry()
       geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
       geom.computeVertexNormals()
+      geom.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((positions.length / 3) * 2), 2))
       return geom
     }
   }
