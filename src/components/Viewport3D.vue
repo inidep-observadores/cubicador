@@ -41,7 +41,7 @@
     <div class="absolute bottom-4 left-4 z-10 flex items-center space-x-2 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-1.5 shadow-lg">
       <button 
         @click="resetCamera"
-        title="Restablecer Vista Isométrica"
+        title="Restablecer Vista Isométrica (Esquina Superior Babor-Proa)"
         class="flex items-center space-x-1 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition"
       >
         <Compass class="w-4 h-4 text-sky-400" />
@@ -50,24 +50,24 @@
 
       <div class="h-4 w-px bg-slate-800"></div>
 
-      <!-- Vistas ortogonales estándar -->
+      <!-- Vistas ortogonales estándar con terminología náutica -->
       <button 
         @click="setCameraView('top')"
-        title="Vista en Planta (Superior)"
+        title="Vista en Planta (Cubierta superior)"
         class="px-2 py-1 text-xs font-mono text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded transition"
       >
         Planta
       </button>
       <button 
         @click="setCameraView('front')"
-        title="Vista Frontal (Eslora)"
+        title="Vista Frente: mirando la pared transversal (de Estribor a Babor) desde Proa hacia Popa"
         class="px-2 py-1 text-xs font-mono text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded transition"
       >
-        Frontal
+        Frente
       </button>
       <button 
         @click="setCameraView('side')"
-        title="Vista Lateral (Manga)"
+        title="Vista Lateral: mirando desde Babor hacia Estribor (perfil longitudinal de Eslora)"
         class="px-2 py-1 text-xs font-mono text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded transition"
       >
         Lateral
@@ -106,6 +106,15 @@
       >
         <Magnet class="w-4 h-4" />
       </button>
+    </div>
+
+    <!-- Indicador Náutico de Orientación -->
+    <div class="absolute bottom-4 right-4 z-10 pointer-events-none text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 font-mono">
+      <span class="text-rose-400 font-bold">X: Eslora (Proa)</span>
+      <span class="text-slate-600">|</span>
+      <span class="text-emerald-400 font-bold">Y: Puntal</span>
+      <span class="text-slate-600">|</span>
+      <span class="text-sky-400 font-bold">Z: Manga (Babor/Estribor)</span>
     </div>
 
     <!-- Indicador de Navegación de Ayuda -->
@@ -186,9 +195,9 @@ function initThree() {
   scene.background = new THREE.Color('#0b0f19')
   scene.fog = new THREE.FogExp2('#0b0f19', 0.015)
 
-  // 2. Cámara
+  // 2. Cámara (Vista inicial desde la esquina superior Babor-Proa)
   camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 150)
-  camera.position.set(14, 11, 16)
+  camera.position.set(16, 11, -14)
 
   // 3. Renderer
   renderer = new THREE.WebGLRenderer({
@@ -493,20 +502,24 @@ watch(() => store.transformMode, (newMode) => {
 
 function resetCamera() {
   if (!camera || !orbitControls) return
-  camera.position.set(14, 11, 16)
+  // Esquina superior Babor-Proa (+X, +Y, -Z)
+  camera.position.set(16, 11, -14)
   orbitControls.target.set(0, 1.5, 0)
 }
 
 function setCameraView(view) {
   if (!camera || !orbitControls) return
   if (view === 'top') {
-    camera.position.set(0, 22, 0.001)
+    // Vista en Planta (mirando desde arriba hacia cubierta)
+    camera.position.set(0.001, 22, 0)
     orbitControls.target.set(0, 0, 0)
   } else if (view === 'front') {
-    camera.position.set(0, 2, 20)
+    // Vista Frente: mirando la pared transversal (de Estribor a Babor) desde Proa (+X) hacia Popa (-X)
+    camera.position.set(20, 1.5, 0)
     orbitControls.target.set(0, 1.5, 0)
   } else if (view === 'side') {
-    camera.position.set(20, 2, 0)
+    // Vista Lateral: mirando desde Babor (-Z) hacia Estribor (+Z), perfil longitudinal de Eslora
+    camera.position.set(0, 1.5, -20)
     orbitControls.target.set(0, 1.5, 0)
   }
 }
