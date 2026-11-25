@@ -1,22 +1,9 @@
 import * as THREE from 'three'
-import { ADDITION, SUBTRACTION, Brush, Evaluator } from 'three-bvh-csg'
+import { CSG } from 'three-csg-ts'
 import { GEOMETRY_TYPES } from './geometryCatalog.js'
 
-let evaluator = null
-
-function getEvaluator() {
-  if (!evaluator) {
-    evaluator = new Evaluator()
-    evaluator.useGroups = false
-    evaluator.consolidateGroups = false
-    // Solo requerir position y normal para compatibilidad universal con mallas custom
-    evaluator.attributes = ['position', 'normal']
-  }
-  return evaluator
-}
-
 /**
- * Asegura que una geometría tenga los atributos requeridos por CSG (normales y UVs dummy)
+ * Asegura que una geometría tenga los atributos requeridos por Three.js y CSG
  */
 export function sanitizeGeometry(geometry) {
   let g = geometry.clone()
@@ -68,108 +55,33 @@ export function calculateGeometryVolume(geometry) {
 }
 
 /**
- * Aplica una micro-extensión hacia el exterior (overshoot) a geometrías sustractivas
- * que tocan o rebasan los límites del sólido principal.
- * Esto evita el problema de coplanaridad en three-bvh-csg (caras exactamente coincidentes),
- * eliminando paredes fantasma (phantom walls) en cortes de esquina y asegurando
- * que las perforaciones atraviesen limpiamente las paredes del pozo.
+ * Crea una malla THREE.Mesh posicionada y orientada en el espacio de la bodega
  */
-export function applySubtractionOvershoot(geometry, block, pozoBox, overshootAmount = 0.03) {
-  if (!pozoBox || !geometry || !geometry.attributes.position) {
-    return geometry
-  }
+function createBlockMesh(block, material) {
+  const def = GEOMETRY_TYPES[block.tipo_figura]
+  if (!def) return null
 
-  const geom = geometry.clone()
-  const pos = geom.attributes.position
-  const count = pos.count
+  const rawGeom = def.createGeometry(block)
+  const geom = sanitizeGeometry(rawGeom)
+  const mesh = new THREE.Mesh(geom, material)
 
-  // Matriz de transformación del bloque sustractivo
-  const euler = new THREE.Euler(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0, 'XYZ')
-  const quat = new THREE.Quaternion().setFromEuler(euler)
-  const posVec = new THREE.Vector3(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
-  const matrixWorld = new THREE.Matrix4().compose(posVec, quat, new THREE.Vector3(1, 1, 1))
-  const invMatrix = matrixWorld.clone().invert()
+  mesh.position.set(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
+  mesh.rotation.set(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0)
+  mesh.updateMatrix()
+  mesh.updateMatrixWorld(true)
 
-  const threshold = 0.015 // Tolerancia de contacto con la frontera del pozo (1.5 cm)
-  const vertex = new THREE.Vector3()
-
-  for (let i = 0; i < count; i++) {
-    vertex.fromBufferAttribute(pos, i)
-    // Pasar vértice a coordenadas mundiales
-    vertex.applyMatrix4(matrixWorld)
-
-    // Si el vértice toca o sobrepasa alguna de las 6 caras exteriores del pozo,
-    // se empuja hacia afuera en el espacio exterior para garantizar corte limpio
-    if (vertex.x >= pozoBox.max.x - threshold) vertex.x += overshootAmount
-    if (vertex.x <= pozoBox.min.x + threshold) vertex.x -= overshootAmount
-
-    if (vertex.y >= pozoBox.max.y - threshold) vertex.y += overshootAmount
-    if (vertex.y <= pozoBox.min.y + threshold) vertex.y -= overshootAmount
-
-    if (vertex.z >= pozoBox.max.z - threshold) vertex.z += overshootAmount
-    if (vertex.z <= pozoBox.min.z + threshold) vertex.z -= overshootAmount
-
-    // Regresar a coordenadas locales
-    vertex.applyMatrix4(invMatrix)
-    pos.setXYZ(i, vertex.x, vertex.y, vertex.z)
-  }
-
-  pos.needsUpdate = true
-  geom.computeVertexNormals()
-  return geom
-}
-
-/**
- * Aplica una micro-penetración (overlap) de 1 mm a bloques aditivos que tocan exactamente
- * cara con cara al pozo principal, para evitar caras coplanares internas disjuntas.
- */
-export function applyAdditionOverlap(geometry, block, pozoBox, overlapAmount = 0.002) {
-  if (!pozoBox || !geometry || !geometry.attributes.position) {
-    return geometry
-  }
-
-  const geom = geometry.clone()
-  const pos = geom.attributes.position
-  const count = pos.count
-
-  const euler = new THREE.Euler(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0, 'XYZ')
-  const quat = new THREE.Quaternion().setFromEuler(euler)
-  const posVec = new THREE.Vector3(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
-  const matrixWorld = new THREE.Matrix4().compose(posVec, quat, new THREE.Vector3(1, 1, 1))
-  const invMatrix = matrixWorld.clone().invert()
-
-  const threshold = 0.01
-  const vertex = new THREE.Vector3()
-
-  for (let i = 0; i < count; i++) {
-    vertex.fromBufferAttribute(pos, i)
-    vertex.applyMatrix4(matrixWorld)
-
-    // Si el vértice está en la frontera de contacto con el pozo, empujar levemente hacia el interior del pozo
-    if (Math.abs(vertex.x - pozoBox.max.x) <= threshold) vertex.x -= overlapAmount
-    else if (Math.abs(vertex.x - pozoBox.min.x) <= threshold) vertex.x += overlapAmount
-
-    if (Math.abs(vertex.z - pozoBox.max.z) <= threshold) vertex.z -= overlapAmount
-    else if (Math.abs(vertex.z - pozoBox.min.z) <= threshold) vertex.z += overlapAmount
-
-    if (Math.abs(vertex.y - pozoBox.max.y) <= threshold) vertex.y -= overlapAmount
-    else if (Math.abs(vertex.y - pozoBox.min.y) <= threshold) vertex.y += overlapAmount
-
-    vertex.applyMatrix4(invMatrix)
-    pos.setXYZ(i, vertex.x, vertex.y, vertex.z)
-  }
-
-  pos.needsUpdate = true
-  geom.computeVertexNormals()
-  return geom
+  return mesh
 }
 
 /**
  * Genera el sólido booleano resultante (CSG) a partir de la lista de bloques
- * 1) Fusión secuencial de todas las UNIONES (+) para formar el cuerpo completo del pozo.
- * 2) Aplicación secuencial de todas las SUSTRACCIONES (-) con micro-escala afín (0.8%)
- *    que elimina de raíz la coplanaridad de caras coincidentes (paredes fantasma) sin
- *    deformar los vértices ni alterar la topología canónica de las figuras.
+ * utilizando un motor de partición binaria del espacio (BSP clásico determinista).
+ * 
+ * Flujo:
+ * 1) Unión secuencial de todas las figuras aditivas (+) para formar el cuerpo del pozo.
+ * 2) Filtrado de figuras sustractivas (-) relevantes (que intersecten la envolvente del pozo).
+ * 3) Sustracción secuencial (-) de cada bloque cortador.
+ * 4) Generación de normales suaves y cálculo del volumen real de la malla.
  */
 export function buildCompositePozo(bloques) {
   if (!bloques || bloques.length === 0) {
@@ -177,8 +89,6 @@ export function buildCompositePozo(bloques) {
   }
 
   try {
-    const evalInstance = getEvaluator()
-
     const uniones = bloques.filter(b => b.operacion === 'UNION')
     const sustracciones = bloques.filter(b => b.operacion === 'SUBSTRACCION')
 
@@ -194,70 +104,59 @@ export function buildCompositePozo(bloques) {
     })
 
     // --- FASE 1: FUSIÓN DE TODAS LAS UNIONES (+) ---
-    const firstBlock = uniones[0]
-    const firstDef = GEOMETRY_TYPES[firstBlock.tipo_figura]
-    if (!firstDef) return { mesh: null, volume: 0, error: 'Figura no reconocida.' }
-
-    const firstGeom = sanitizeGeometry(firstDef.createGeometry(firstBlock))
-    let compositeBrush = new Brush(firstGeom, baseMaterial)
-    compositeBrush.position.set(firstBlock.pos_x || 0, firstBlock.pos_y || 0, firstBlock.pos_z || 0)
-    compositeBrush.rotation.set(firstBlock.rot_x || 0, firstBlock.rot_y || 0, firstBlock.rot_z || 0)
-    compositeBrush.updateMatrixWorld()
+    let compositeMesh = createBlockMesh(uniones[0], baseMaterial)
+    if (!compositeMesh) {
+      return { mesh: null, volume: 0, error: 'Figura principal no reconocida.' }
+    }
 
     for (let i = 1; i < uniones.length; i++) {
-      const block = uniones[i]
-      const def = GEOMETRY_TYPES[block.tipo_figura]
-      if (!def) continue
-
-      const currentBox = new THREE.Box3().setFromObject(compositeBrush)
-      let rawGeom = sanitizeGeometry(def.createGeometry(block))
-      let geom = applyAdditionOverlap(rawGeom, block, currentBox)
-
-      const brush = new Brush(geom, baseMaterial)
-      brush.position.set(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
-      brush.rotation.set(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0)
-      brush.updateMatrixWorld()
+      const blockMesh = createBlockMesh(uniones[i], baseMaterial)
+      if (!blockMesh) continue
 
       try {
-        compositeBrush = evalInstance.evaluate(compositeBrush, brush, ADDITION)
-        compositeBrush.updateMatrixWorld()
+        compositeMesh = CSG.union(compositeMesh, blockMesh)
+        compositeMesh.updateMatrix()
+        compositeMesh.updateMatrixWorld(true)
       } catch (errAdd) {
-        console.warn(`Error al unir ${block.nombre}:`, errAdd)
+        console.warn(`Error al unir ${uniones[i].nombre}:`, errAdd)
       }
     }
 
     // --- FASE 2: APLICACIÓN DE TODAS LAS SUSTRACCIONES (-) ---
     for (let j = 0; j < sustracciones.length; j++) {
       const subBlock = sustracciones[j]
-      const subDef = GEOMETRY_TYPES[subBlock.tipo_figura]
-      if (!subDef) continue
+      const subMesh = createBlockMesh(subBlock, baseMaterial)
+      if (!subMesh) continue
 
-      const subGeom = sanitizeGeometry(subDef.createGeometry(subBlock))
-      const subBrush = new Brush(subGeom, baseMaterial)
-      // Micro-escala afín del 0.8% (invisible al ojo pero suficiente para que las caras de corte
-      // atraviesen completamente las paredes sin dejar membranas coplanares ni paredes fantasma)
-      subBrush.scale.set(1.008, 1.008, 1.008)
-      subBrush.position.set(subBlock.pos_x || 0, subBlock.pos_y || 0, subBlock.pos_z || 0)
-      subBrush.rotation.set(subBlock.rot_x || 0, subBlock.rot_y || 0, subBlock.rot_z || 0)
-      subBrush.updateMatrixWorld()
+      // Comprobar si la figura sustractiva intersecta la envolvente del pozo actual.
+      // Si flota en el aire o está completamente fuera, se omite para optimizar CPU
+      // y evitar operaciones nulas en el vacío.
+      const currentBox = new THREE.Box3().setFromObject(compositeMesh)
+      const subBox = new THREE.Box3().setFromObject(subMesh)
+
+      if (!currentBox.intersectsBox(subBox)) {
+        continue
+      }
 
       try {
-        compositeBrush = evalInstance.evaluate(compositeBrush, subBrush, SUBTRACTION)
-        compositeBrush.updateMatrixWorld()
+        compositeMesh = CSG.subtract(compositeMesh, subMesh)
+        compositeMesh.updateMatrix()
+        compositeMesh.updateMatrixWorld(true)
       } catch (errSub) {
         console.warn(`Error al restar ${subBlock.nombre}:`, errSub)
       }
     }
 
-    // Recalcular normales para suavizar bordes del corte
-    if (compositeBrush.geometry) {
-      compositeBrush.geometry.computeVertexNormals()
+    // Asegurar material y normales suaves
+    if (compositeMesh.geometry) {
+      compositeMesh.geometry.computeVertexNormals()
     }
+    compositeMesh.material = baseMaterial
 
-    const finalVolume = calculateGeometryVolume(compositeBrush.geometry)
+    const finalVolume = calculateGeometryVolume(compositeMesh.geometry)
 
     return {
-      mesh: compositeBrush,
+      mesh: compositeMesh,
       volume: finalVolume,
       error: null
     }
