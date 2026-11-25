@@ -90,15 +90,15 @@ function seedInitialData(db) {
 
     -- 1. Prisma principal (Caja)
     INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion, largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
-    VALUES (1, 1, 1, 'Cuerpo Principal Pozo', 'caja', 'UNION', 6.0, 5.0, 3.0, 0, 0, 0, 0, 0, 1.5, 0, 0, 0, 0, 90.0);
+    VALUES (1, 1, 1, 'Cuerpo Principal Pozo', 'caja', 'UNION', 6.0, 5.0, 3.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 90.0);
 
     -- 2. Rampa de proa (Cuña irregular típica de pozo)
     INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion, largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
-    VALUES (2, 1, 2, 'Rampa de Fondo Pozo', 'cuna_irregular', 'UNION', 4.0, 5.0, 1.5, 5.0, 3.0, 0, 0, 5.0, 0.75, 0, 0, 0, 0, 11.0);
+    VALUES (2, 1, 2, 'Rampa de Fondo Pozo', 'cuna_irregular', 'UNION', 4.0, 5.0, 1.5, 5.0, 3.0, 0, 0, 5.0, 0, 0, 0, 0, 0, 11.0);
 
     -- 3. Columna estructural a restar (Sustracción)
     INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion, largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
-    VALUES (3, 1, 3, 'Columna / Tubería de Paso', 'caja', 'SUBSTRACCION', 0.8, 0.8, 3.2, 0, 0, 0, 0, 1.5, 1.6, 1.5, 0, 0, 0, 2.05);
+    VALUES (3, 1, 3, 'Columna / Tubería de Paso', 'caja', 'SUBSTRACCION', 0.8, 0.8, 3.2, 0, 0, 0, 0, 1.5, 0, 1.5, 0, 0, 0, 2.05);
   `)
 }
 

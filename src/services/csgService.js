@@ -167,56 +167,65 @@ export function buildCompositePozo(bloques) {
 }
 
 /**
- * Snapping magnético inteligente entre caras de bloques
+ * Caja envolvente real de un bloque: respeta la forma de cada figura y su rotación
+ */
+function getBlockBounds(block) {
+  const def = GEOMETRY_TYPES[block.tipo_figura]
+  if (!def) return null
+
+  const geometry = def.createGeometry(block)
+  geometry.applyMatrix4(
+    new THREE.Matrix4().makeRotationFromEuler(
+      new THREE.Euler(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0)
+    )
+  )
+  geometry.translate(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
+  geometry.computeBoundingBox()
+  const box = geometry.boundingBox
+  geometry.dispose()
+  return box
+}
+
+/**
+ * Snapping magnético inteligente entre caras de bloques.
+ * En cada eje aplica el ajuste más corto que quede dentro del umbral.
  */
 export function snapBlockToBounds(targetBlock, allBlocks, threshold = 0.3) {
-  if (!targetBlock) return { pos_x: targetBlock.pos_x, pos_y: targetBlock.pos_y, pos_z: targetBlock.pos_z }
+  if (!targetBlock) return null
 
-  let bestX = targetBlock.pos_x
-  let bestY = targetBlock.pos_y
-  let bestZ = targetBlock.pos_z
+  const position = {
+    pos_x: targetBlock.pos_x,
+    pos_y: targetBlock.pos_y,
+    pos_z: targetBlock.pos_z
+  }
+  const target = getBlockBounds(targetBlock)
+  if (!target) return position
 
-  const tHalfL = (targetBlock.largo || 2) / 2
-  const tHalfW = (targetBlock.ancho || 2) / 2
-  const tH = targetBlock.alto || 2
-
-  const tMinX = targetBlock.pos_x - tHalfL
-  const tMaxX = targetBlock.pos_x + tHalfL
-  const tMinZ = targetBlock.pos_z - tHalfW
-  const tMaxZ = targetBlock.pos_z + tHalfW
-  const tMinY = targetBlock.pos_y
-  const tMaxY = targetBlock.pos_y + tH
+  const best = { x: null, y: null, z: null }
+  const consider = (axis, delta) => {
+    if (Math.abs(delta) >= threshold) return
+    if (best[axis] === null || Math.abs(delta) < Math.abs(best[axis])) best[axis] = delta
+  }
 
   for (const b of allBlocks) {
     if (b.id === targetBlock.id) continue
+    const other = getBlockBounds(b)
+    if (!other) continue
 
-    const bHalfL = (b.largo || 2) / 2
-    const bHalfW = (b.ancho || 2) / 2
-    const bH = b.alto || 2
-
-    const bMinX = b.pos_x - bHalfL
-    const bMaxX = b.pos_x + bHalfL
-    const bMinZ = b.pos_z - bHalfW
-    const bMaxZ = b.pos_z + bHalfW
-    const bMinY = b.pos_y
-    const bMaxY = b.pos_y + bH
-
-    // Snap Eje X
-    if (Math.abs(tMinX - bMaxX) < threshold) bestX = bMaxX + tHalfL
-    else if (Math.abs(tMaxX - bMinX) < threshold) bestX = bMinX - tHalfL
-    else if (Math.abs(tMinX - bMinX) < threshold) bestX = bMinX + tHalfL
-    else if (Math.abs(tMaxX - bMaxX) < threshold) bestX = bMaxX - tHalfL
-
-    // Snap Eje Z
-    if (Math.abs(tMinZ - bMaxZ) < threshold) bestZ = bMaxZ + tHalfW
-    else if (Math.abs(tMaxZ - bMinZ) < threshold) bestZ = bMinZ - tHalfW
-    else if (Math.abs(tMinZ - bMinZ) < threshold) bestZ = bMinZ + tHalfW
-    else if (Math.abs(tMaxZ - bMaxZ) < threshold) bestZ = bMaxZ - tHalfW
-
-    // Snap Eje Y
-    if (Math.abs(tMinY - bMaxY) < threshold) bestY = bMaxY
-    else if (Math.abs(tMinY - bMinY) < threshold) bestY = bMinY
+    // Planta: caras enfrentadas o alineadas
+    for (const axis of ['x', 'z']) {
+      consider(axis, other.max[axis] - target.min[axis])
+      consider(axis, other.min[axis] - target.max[axis])
+      consider(axis, other.min[axis] - target.min[axis])
+      consider(axis, other.max[axis] - target.max[axis])
+    }
+    // Puntal: apoyar encima o compartir piso
+    consider('y', other.max.y - target.min.y)
+    consider('y', other.min.y - target.min.y)
   }
 
-  return { pos_x: bestX, pos_y: bestY, pos_z: bestZ }
+  position.pos_x += best.x || 0
+  position.pos_y += best.y || 0
+  position.pos_z += best.z || 0
+  return position
 }

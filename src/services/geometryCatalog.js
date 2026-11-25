@@ -9,6 +9,84 @@ import * as THREE from 'three'
  * - Esquemas SVG con cotas para la interfaz de usuario
  */
 
+const SEGMENTOS_RADIALES = 32
+
+// Radio del polígono regular que tiene la misma área que el círculo de radio R.
+// Sin esta corrección la malla facetada de cilindros y conos pierde ~0.6 % de volumen.
+function radioEquivalente(R) {
+  const angulo = (2 * Math.PI) / SEGMENTOS_RADIALES
+  return R * Math.sqrt(angulo / Math.sin(angulo))
+}
+
+/**
+ * Arma una malla cerrada a partir de caras poligonales (pueden ser alabeadas).
+ * Cada cara se triangula en abanico desde su centro, lo que reproduce exactamente
+ * el volumen de una superficie reglada bilineal. Las normales se orientan hacia
+ * afuera respecto del centro del sólido, y los vértices repetidos (bordes que
+ * convergen en un punto) se eliminan para no generar triángulos degenerados.
+ */
+function solidFromFaces(faces) {
+  const same = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
+  const polys = faces
+    .map(f => f.filter((v, i) => !same(v, f[(i + 1) % f.length])))
+    .filter(f => f.length >= 3)
+
+  const all = polys.flat()
+  const center = new THREE.Vector3()
+  all.forEach(v => center.add(new THREE.Vector3(...v)))
+  center.divideScalar(all.length)
+
+  const positions = []
+  for (const poly of polys) {
+    const pts = poly.map(v => new THREE.Vector3(...v))
+    const c = pts.reduce((acc, p) => acc.add(p), new THREE.Vector3()).divideScalar(pts.length)
+    // Normal de Newell para decidir el sentido de giro
+    const n = new THREE.Vector3()
+    pts.forEach((p, i) => {
+      const q = pts[(i + 1) % pts.length]
+      n.x += (p.y - q.y) * (p.z + q.z)
+      n.y += (p.z - q.z) * (p.x + q.x)
+      n.z += (p.x - q.x) * (p.y + q.y)
+    })
+    if (n.dot(c.clone().sub(center)) < 0) pts.reverse()
+
+    const triangles = pts.length === 3
+      ? [[pts[0], pts[1], pts[2]]]
+      : pts.map((p, i) => [c, p, pts[(i + 1) % pts.length]])
+    triangles.forEach(t => t.forEach(p => positions.push(p.x, p.y, p.z)))
+  }
+
+  const geom = new THREE.BufferGeometry()
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geom.computeVertexNormals()
+  geom.setAttribute('uv', new THREE.BufferAttribute(new Float32Array((positions.length / 3) * 2), 2))
+  return geom
+}
+
+/**
+ * Pozo cuya sección transversal es un trapecio de altura H que varía linealmente
+ * a lo largo de la eslora: en x = -L/2 mide A arriba y B abajo; en x = +L/2 mide
+ * C arriba y D abajo. El área de la sección es lineal en x, así que su volumen es
+ * exactamente L·H·(A + B + C + D) / 4.
+ */
+function prismoideTrapezoidal(L, H, A, B, C, D) {
+  const x0 = -L / 2
+  const x1 = L / 2
+  const b0 = [[x0, 0, -B / 2], [x0, 0, B / 2]]
+  const t0 = [[x0, H, -A / 2], [x0, H, A / 2]]
+  const b1 = [[x1, 0, -D / 2], [x1, 0, D / 2]]
+  const t1 = [[x1, H, -C / 2], [x1, H, C / 2]]
+
+  return solidFromFaces([
+    [b0[0], b1[0], b1[1], b0[1]], // piso
+    [t0[0], t0[1], t1[1], t1[0]], // techo
+    [b0[0], b0[1], t0[1], t0[0]], // extremo x = -L/2
+    [b1[0], t1[0], t1[1], b1[1]], // extremo x = +L/2
+    [b0[0], t0[0], t1[0], b1[0]], // costado z-
+    [b0[1], b1[1], t1[1], t0[1]]  // costado z+
+  ])
+}
+
 export const GEOMETRY_TYPES = {
   // 1. CAJA (PRISMA RECTANGULAR)
   caja: {
@@ -201,7 +279,7 @@ export const GEOMETRY_TYPES = {
     formula: 'V = ½ × (A + B) × H × L',
     params: [
       { key: 'largo', label: 'Largo (L)', default: 6.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'alto', label: 'Alto (H)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'alto', label: 'Alto vertical (H)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
       { key: 'base_a', label: 'Ancho Superior (A)', default: 5.0, min: 0.1, step: 0.1, unit: 'm' },
       { key: 'base_b', label: 'Ancho Inferior (B)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' }
     ],
@@ -246,6 +324,7 @@ export const GEOMETRY_TYPES = {
         bevelEnabled: false
       })
       geom.translate(0, 0, -L / 2)
+      geom.rotateY(Math.PI / 2) // el largo corre sobre X (eslora)
       return geom
     }
   },
@@ -255,15 +334,15 @@ export const GEOMETRY_TYPES = {
     id: 'trapezoide_conico_1',
     nombre: 'Trapezoide Cónico (1)',
     categoria: 'Pozos y Rampas',
-    descripcion: 'V = ½ × (A + B + C + D) × H × L. Obelisco o pozo con caras convergentes.',
-    formula: 'V = ½ × (A + B + C + D) × H × L',
+    descripcion: 'V = ¼ × (A + B + C + D) × H × L. Pozo trapezoidal cuya sección cambia de un extremo al otro.',
+    formula: 'V = ¼ × (A + B + C + D) × H × L',
     params: [
       { key: 'largo', label: 'Largo (L)', default: 5.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'alto', label: 'Alto (H)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'base_a', label: 'Lado A', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'base_b', label: 'Lado B', default: 1.5, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'diametro_d', label: 'Lado C', default: 1.8, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'diametro_d_menor', label: 'Lado D', default: 1.2, min: 0.1, step: 0.1, unit: 'm' }
+      { key: 'alto', label: 'Alto vertical (H)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'base_a', label: 'Ancho sup. extremo 1 (A)', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'base_b', label: 'Ancho inf. extremo 1 (B)', default: 1.5, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'diametro_d', label: 'Ancho sup. extremo 2 (C)', default: 1.8, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'diametro_d_menor', label: 'Ancho inf. extremo 2 (D)', default: 1.2, min: 0.1, step: 0.1, unit: 'm' }
     ],
     svgDiagram: `
       <svg viewBox="0 0 160 100" class="w-full h-20 stroke-sky-400 fill-sky-500/10 stroke-1 font-mono text-[9px]">
@@ -282,35 +361,24 @@ export const GEOMETRY_TYPES = {
       const D = p.diametro_d_menor || 0
       const H = p.alto || 0
       const L = p.largo || 0
-      return 0.5 * (A + B + C + D) * H * L
+      return 0.25 * (A + B + C + D) * H * L
     },
     explainCalculation(p) {
       const sum = ((p.base_a || 0) + (p.base_b || 0) + (p.diametro_d || 0) + (p.diametro_d_menor || 0)).toFixed(2)
       const H = (p.alto || 0).toFixed(2)
       const L = (p.largo || 0).toFixed(2)
       const V = this.calculateVolume(p).toFixed(2)
-      return `0.5 × (${sum}m) × ${H}m × ${L}m = ${V} m³`
+      return `0.25 × (${sum}m) × ${H}m × ${L}m = ${V} m³`
     },
     createGeometry(p) {
-      const L = Math.max(0.01, p.largo || 1)
-      const H = Math.max(0.01, p.alto || 1)
-      const A = Math.max(0.01, p.base_a || 1)
-      const B = Math.max(0.01, p.base_b || 1)
-
-      const shape = new THREE.Shape()
-      shape.moveTo(-B / 2, 0)
-      shape.lineTo(B / 2, 0)
-      shape.lineTo(A / 2, H)
-      shape.lineTo(-A / 2, H)
-      shape.closePath()
-
-      const geom = new THREE.ExtrudeGeometry(shape, {
-        steps: 1,
-        depth: L,
-        bevelEnabled: false
-      })
-      geom.translate(0, 0, -L / 2)
-      return geom
+      return prismoideTrapezoidal(
+        Math.max(0.01, p.largo || 1),
+        Math.max(0.01, p.alto || 1),
+        Math.max(0.01, p.base_a || 1),
+        Math.max(0.01, p.base_b || 1),
+        Math.max(0.01, p.diametro_d || 1),
+        Math.max(0.01, p.diametro_d_menor || 1)
+      )
     }
   },
 
@@ -319,14 +387,14 @@ export const GEOMETRY_TYPES = {
     id: 'trapezoide_conico_2',
     nombre: 'Trapezoide Cónico (2)',
     categoria: 'Pozos y Rampas',
-    descripcion: 'V = ¼ × (A + B + C) × H × L. Tolva o prisma asimétrico.',
+    descripcion: 'V = ¼ × (A + B + C) × H × L. Tolva: el piso converge en un punto en el extremo 2.',
     formula: 'V = ¼ × (A + B + C) × H × L',
     params: [
       { key: 'largo', label: 'Largo (L)', default: 5.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'alto', label: 'Alto (H)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'base_a', label: 'Lado A', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'base_b', label: 'Lado B', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'diametro_d', label: 'Lado C', default: 2.5, min: 0.1, step: 0.1, unit: 'm' }
+      { key: 'alto', label: 'Alto vertical (H)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'base_a', label: 'Ancho sup. extremo 1 (A)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'base_b', label: 'Ancho inf. extremo 1 (B)', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'diametro_d', label: 'Ancho sup. extremo 2 (C)', default: 2.5, min: 0.1, step: 0.1, unit: 'm' }
     ],
     svgDiagram: `
       <svg viewBox="0 0 160 100" class="w-full h-20 stroke-sky-400 fill-sky-500/10 stroke-1 font-mono text-[9px]">
@@ -354,21 +422,15 @@ export const GEOMETRY_TYPES = {
       return `0.25 × (${sum}m) × ${H}m × ${L}m = ${V} m³`
     },
     createGeometry(p) {
-      const L = Math.max(0.01, p.largo || 1)
-      const H = Math.max(0.01, p.alto || 1)
-      const A = Math.max(0.01, p.base_a || 1)
-      const B = Math.max(0.01, p.base_b || 1)
-
-      const shape = new THREE.Shape()
-      shape.moveTo(-B / 2, 0)
-      shape.lineTo(B / 2, 0)
-      shape.lineTo(A / 2, H)
-      shape.lineTo(-A / 2, H)
-      shape.closePath()
-
-      const geom = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: L, bevelEnabled: false })
-      geom.translate(0, 0, -L / 2)
-      return geom
+      // Caso particular del trapezoide cónico (1) con D = 0
+      return prismoideTrapezoidal(
+        Math.max(0.01, p.largo || 1),
+        Math.max(0.01, p.alto || 1),
+        Math.max(0.01, p.base_a || 1),
+        Math.max(0.01, p.base_b || 1),
+        Math.max(0.01, p.diametro_d || 1),
+        0
+      )
     }
   },
 
@@ -406,7 +468,7 @@ export const GEOMETRY_TYPES = {
     createGeometry(p) {
       const R = Math.max(0.01, (p.diametro_d || 1) / 2)
       const H = Math.max(0.01, p.alto || 1)
-      const geom = new THREE.CylinderGeometry(R, R, H, 32)
+      const geom = new THREE.CylinderGeometry(radioEquivalente(R), radioEquivalente(R), H, SEGMENTOS_RADIALES)
       geom.translate(0, H / 2, 0)
       return geom
     }
@@ -452,52 +514,61 @@ export const GEOMETRY_TYPES = {
       const rTop = Math.max(0.01, (p.diametro_d || 1) / 2)
       const rBottom = Math.max(0.01, (p.diametro_d_menor || 1) / 2)
       const H = Math.max(0.01, p.alto || 1)
-      const geom = new THREE.CylinderGeometry(rTop, rBottom, H, 32)
+      const geom = new THREE.CylinderGeometry(radioEquivalente(rTop), radioEquivalente(rBottom), H, SEGMENTOS_RADIALES)
       geom.translate(0, H / 2, 0)
       return geom
     }
   },
 
-  // 9. ELIPSOIDE
+  // 9. CILINDRO ELÍPTICO (BOLSA DE RED)
+  // Se conserva el id 'elipsoide' para no romper las bases ya guardadas.
+  // La ficha lo llama "Elipsoide", pero lo dibuja y lo calcula como un cilindro de
+  // sección elíptica: 0,78545 = π/4 (la ficha usa π ≈ 3,1418).
   elipsoide: {
     id: 'elipsoide',
-    nombre: 'Elipsoide (Bolsa de Red)',
+    nombre: 'Cilindro Elíptico (Bolsa de Red)',
     categoria: 'Especiales',
-    descripcion: 'V = 0.78545 × W × H × L. Volumen aproximado de copo o bolsa de red de pesca.',
-    formula: 'V = 0.78545 × W × H × L',
+    descripcion: 'V = π/4 × W × H × L (≈ 0,7854). Copo o bolsa de red: cilindro de largo L con sección elíptica W × H.',
+    formula: 'V = π/4 × W × H × L',
     params: [
       { key: 'largo', label: 'Largo (L)', default: 6.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'ancho', label: 'Ancho (W)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'alto', label: 'Alto (H)', default: 2.5, min: 0.1, step: 0.1, unit: 'm' }
+      { key: 'ancho', label: 'Ancho de la sección (W)', default: 3.0, min: 0.1, step: 0.1, unit: 'm' },
+      { key: 'alto', label: 'Alto de la sección (H)', default: 2.5, min: 0.1, step: 0.1, unit: 'm' }
     ],
     svgDiagram: `
       <svg viewBox="0 0 160 100" class="w-full h-20 stroke-sky-400 fill-sky-500/10 stroke-1 font-mono text-[9px]">
-        <ellipse cx="80" cy="50" rx="55" ry="25" />
-        <ellipse cx="80" cy="50" rx="55" ry="10" stroke-dasharray="2,2" />
-        <text x="75" y="20" class="fill-amber-300 stroke-none">L</text>
-        <text x="140" y="55" class="fill-amber-300 stroke-none">W, H</text>
+        <ellipse cx="40" cy="50" rx="12" ry="22" />
+        <line x1="40" y1="28" x2="120" y2="28" />
+        <line x1="40" y1="72" x2="120" y2="72" />
+        <path d="M 120 28 A 12 22 0 0 1 120 72" />
+        <path d="M 120 28 A 12 22 0 0 0 120 72" stroke-dasharray="2,2" />
+        <text x="78" y="22" class="fill-amber-300 stroke-none">L</text>
+        <text x="20" y="90" class="fill-amber-300 stroke-none">W × H</text>
       </svg>
     `,
     calculateVolume(p) {
-      return 0.78545 * (p.ancho || 0) * (p.alto || 0) * (p.largo || 0)
+      return (Math.PI / 4) * (p.ancho || 0) * (p.alto || 0) * (p.largo || 0)
     },
     explainCalculation(p) {
       const W = (p.ancho || 0).toFixed(2)
       const H = (p.alto || 0).toFixed(2)
       const L = (p.largo || 0).toFixed(2)
       const V = this.calculateVolume(p).toFixed(2)
-      return `0.78545 × ${W}m × ${H}m × ${L}m = ${V} m³`
+      return `0.7854 × ${W}m × ${H}m × ${L}m = ${V} m³`
     },
     createGeometry(p) {
-      const geom = new THREE.SphereGeometry(1, 32, 24)
-      const rx = Math.max(0.01, (p.largo || 1) / 2)
-      const ry = Math.max(0.01, (p.alto || 1) / 2)
-      const rz = Math.max(0.01, (p.ancho || 1) / 2)
-      geom.scale(rx, ry, rz)
+      const L = Math.max(0.01, p.largo || 1)
+      // Semiejes ajustados para que el polígono de la sección conserve el área de la elipse
+      const ry = radioEquivalente(Math.max(0.01, (p.alto || 1) / 2))
+      const rz = radioEquivalente(Math.max(0.01, (p.ancho || 1) / 2))
+      const geom = new THREE.CylinderGeometry(1, 1, L, SEGMENTOS_RADIALES)
+      geom.rotateZ(Math.PI / 2) // eje del cilindro sobre X (eslora)
+      geom.scale(1, ry, rz)
       geom.translate(0, ry, 0)
       return geom
     }
   },
+
 
   // 10. PIRAMIDAL / TETRAEDRO
   piramidal: {

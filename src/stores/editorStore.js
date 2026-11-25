@@ -156,7 +156,9 @@ export const useEditorStore = defineStore('editor', {
         b.rot_x = Number(b.rot_x) || 0
         b.rot_y = Number(b.rot_y) || 0
         b.rot_z = Number(b.rot_z) || 0
-        b.volumen_individual = Number(b.volumen_individual) || 0
+        // Recalcular siempre: el valor guardado puede venir de una fórmula anterior
+        const def = GEOMETRY_TYPES[b.tipo_figura]
+        b.volumen_individual = def ? def.calculateVolume(b) : (Number(b.volumen_individual) || 0)
         list.push(b)
       }
       stmt.free()
@@ -192,7 +194,7 @@ export const useEditorStore = defineStore('editor', {
         diametro_d: defaults.diametro_d || 1.5,
         diametro_d_menor: defaults.diametro_d_menor || 1.0,
         pos_x: (this.bloques.length * 1.5) % 6,
-        pos_y: (defaults.alto || 2.5) / 2,
+        pos_y: 0, // las geometrías apoyan su base en y=0
         pos_z: 0,
         rot_x: 0,
         rot_y: 0,
