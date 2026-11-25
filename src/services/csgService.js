@@ -230,13 +230,17 @@ export function buildCompositePozo(bloques) {
     // --- FASE 2: UNIFICACIÓN DE CORTADORES SUSTRACTIVOS (-) ---
     if (sustracciones.length > 0) {
       let combinedCutter = null
+      const pozoBox = new THREE.Box3().setFromObject(compositeBrush)
 
       for (let j = 0; j < sustracciones.length; j++) {
         const subBlock = sustracciones[j]
         const subDef = GEOMETRY_TYPES[subBlock.tipo_figura]
         if (!subDef) continue
 
-        const subGeom = sanitizeGeometry(subDef.createGeometry(subBlock))
+        let rawGeom = sanitizeGeometry(subDef.createGeometry(subBlock))
+        // Extender caras exteriores de corte para perforar limpiamente sin pared fantasma
+        let subGeom = applySubtractionOvershoot(rawGeom, subBlock, pozoBox, 0.03)
+
         const subBrush = new Brush(subGeom, baseMaterial)
         subBrush.position.set(subBlock.pos_x || 0, subBlock.pos_y || 0, subBlock.pos_z || 0)
         subBrush.rotation.set(subBlock.rot_x || 0, subBlock.rot_y || 0, subBlock.rot_z || 0)
