@@ -166,11 +166,10 @@ export function applyAdditionOverlap(geometry, block, pozoBox, overlapAmount = 0
 
 /**
  * Genera el sólido booleano resultante (CSG) a partir de la lista de bloques
- * Arquitectura robusta en 2 etapas fundamentada en el álgebra booleana A \ (B ∪ C):
  * 1) Fusión secuencial de todas las UNIONES (+) para formar el cuerpo completo del pozo.
- * 2) Fusión de todos los cortadores SUSTRACCIONES (-) en un único sólido de corte compuesto.
- * 3) Aplicación de una única sustracción global final sobre el cuerpo unificado,
- *    evitando la degradación acumulativa de mallas intermedias y garantizando cortes limpios.
+ * 2) Aplicación secuencial de todas las SUSTRACCIONES (-) con micro-escala afín (0.8%)
+ *    que elimina de raíz la coplanaridad de caras coincidentes (paredes fantasma) sin
+ *    deformar los vértices ni alterar la topología canónica de las figuras.
  */
 export function buildCompositePozo(bloques) {
   if (!bloques || bloques.length === 0) {
@@ -227,45 +226,26 @@ export function buildCompositePozo(bloques) {
       }
     }
 
-    // --- FASE 2: UNIFICACIÓN DE CORTADORES SUSTRACTIVOS (-) ---
-    if (sustracciones.length > 0) {
-      let combinedCutter = null
-      const pozoBox = new THREE.Box3().setFromObject(compositeBrush)
+    // --- FASE 2: APLICACIÓN DE TODAS LAS SUSTRACCIONES (-) ---
+    for (let j = 0; j < sustracciones.length; j++) {
+      const subBlock = sustracciones[j]
+      const subDef = GEOMETRY_TYPES[subBlock.tipo_figura]
+      if (!subDef) continue
 
-      for (let j = 0; j < sustracciones.length; j++) {
-        const subBlock = sustracciones[j]
-        const subDef = GEOMETRY_TYPES[subBlock.tipo_figura]
-        if (!subDef) continue
+      const subGeom = sanitizeGeometry(subDef.createGeometry(subBlock))
+      const subBrush = new Brush(subGeom, baseMaterial)
+      // Micro-escala afín del 0.8% (invisible al ojo pero suficiente para que las caras de corte
+      // atraviesen completamente las paredes sin dejar membranas coplanares ni paredes fantasma)
+      subBrush.scale.set(1.008, 1.008, 1.008)
+      subBrush.position.set(subBlock.pos_x || 0, subBlock.pos_y || 0, subBlock.pos_z || 0)
+      subBrush.rotation.set(subBlock.rot_x || 0, subBlock.rot_y || 0, subBlock.rot_z || 0)
+      subBrush.updateMatrixWorld()
 
-        let rawGeom = sanitizeGeometry(subDef.createGeometry(subBlock))
-        // Extender caras exteriores de corte para perforar limpiamente sin pared fantasma
-        let subGeom = applySubtractionOvershoot(rawGeom, subBlock, pozoBox, 0.03)
-
-        const subBrush = new Brush(subGeom, baseMaterial)
-        subBrush.position.set(subBlock.pos_x || 0, subBlock.pos_y || 0, subBlock.pos_z || 0)
-        subBrush.rotation.set(subBlock.rot_x || 0, subBlock.rot_y || 0, subBlock.rot_z || 0)
-        subBrush.updateMatrixWorld()
-
-        if (!combinedCutter) {
-          combinedCutter = subBrush
-        } else {
-          try {
-            combinedCutter = evalInstance.evaluate(combinedCutter, subBrush, ADDITION)
-            combinedCutter.updateMatrixWorld()
-          } catch (errUnionSub) {
-            console.warn(`Error al combinar cortador ${subBlock.nombre}:`, errUnionSub)
-          }
-        }
-      }
-
-      // --- FASE 3: CORTE BOOLEANO GLOBAL ÚNICO: A \ (B ∪ C) ---
-      if (combinedCutter) {
-        try {
-          compositeBrush = evalInstance.evaluate(compositeBrush, combinedCutter, SUBTRACTION)
-          compositeBrush.updateMatrixWorld()
-        } catch (errFinalSub) {
-          console.warn('Error en la sustracción combinada:', errFinalSub)
-        }
+      try {
+        compositeBrush = evalInstance.evaluate(compositeBrush, subBrush, SUBTRACTION)
+        compositeBrush.updateMatrixWorld()
+      } catch (errSub) {
+        console.warn(`Error al restar ${subBlock.nombre}:`, errSub)
       }
     }
 
