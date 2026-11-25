@@ -181,29 +181,110 @@
         <Ruler class="w-4 h-4" />
       </button>
 
-      <!-- Botón Exportar SQLite -->
-      <button 
-        @click="exportDb"
-        title="Guardar / Respaldar Base de Datos SQLite (.sqlite)"
-        class="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-medium transition"
-      >
-        <Database class="w-4 h-4 text-emerald-400" />
-        <span>Respaldar DB</span>
-      </button>
+      <!-- Respaldo a archivo y copias automáticas -->
+      <div class="relative flex items-stretch">
+        <button
+          @click="store.exportDatabase()"
+          :title="exportTitle"
+          :class="exportOverdue ? 'border-amber-500/60 text-amber-200' : 'border-slate-700 text-slate-200'"
+          class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border rounded-l-lg px-3 py-1.5 text-xs font-medium transition"
+        >
+          <Database class="w-4 h-4" :class="exportOverdue ? 'text-amber-400' : 'text-emerald-400'" />
+          <span>Respaldar DB</span>
+          <span v-if="exportOverdue" class="text-[10px] font-mono text-amber-400">{{ exportAgeLabel }}</span>
+        </button>
+        <button
+          @click="backupsOpen = !backupsOpen"
+          title="Copias automáticas guardadas en este navegador"
+          class="flex items-center bg-slate-800 hover:bg-slate-700 border border-l-0 border-slate-700 text-slate-300 rounded-r-lg px-1.5 transition"
+        >
+          <History class="w-4 h-4" />
+        </button>
+
+        <div
+          v-if="backupsOpen"
+          class="absolute right-0 top-full mt-2 w-80 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3 space-y-2 text-xs"
+        >
+          <div class="flex items-center justify-between">
+            <span class="font-bold uppercase tracking-wider text-slate-300 text-[11px]">Copias automáticas</span>
+            <button @click="backupsOpen = false" class="text-slate-500 hover:text-white">✕</button>
+          </div>
+
+          <p v-if="store.storagePersisted === true" class="text-emerald-400/90 text-[11px]">
+            ✓ El navegador conserva los datos de forma persistente.
+          </p>
+          <p v-else class="text-amber-300 text-[11px]">
+            ⚠ El navegador podría borrar los datos si falta espacio o la app no se usa por un tiempo.
+            Instalá la app y exportá respaldos .sqlite con frecuencia.
+          </p>
+
+          <p class="text-slate-500 text-[11px]">
+            Se guardan dentro de este navegador: sirven para volver atrás, pero no reemplazan un archivo exportado.
+          </p>
+
+          <div v-if="store.backups.length === 0" class="text-slate-500 italic py-2">Todavía no hay copias.</div>
+          <ul v-else class="max-h-64 overflow-y-auto space-y-1">
+            <li
+              v-for="c in store.backups"
+              :key="c.id"
+              class="flex items-center justify-between gap-2 bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-1.5"
+            >
+              <div class="min-w-0">
+                <div class="font-mono text-slate-200">{{ formatDate(c.fecha) }}</div>
+                <div class="text-[10px] text-slate-500 truncate">{{ c.motivo }} · {{ formatSize(c.tamano) }}</div>
+              </div>
+              <button
+                @click="restore(c.id)"
+                class="shrink-0 text-[11px] text-sky-300 hover:text-white hover:bg-slate-700 px-2 py-1 rounded transition"
+              >
+                Restaurar
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
-import { exportDatabaseFile } from '../services/db'
-import { 
-  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, Sparkles 
+import {
+  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, Sparkles, History
 } from 'lucide-vue-next'
 
 const store = useEditorStore()
+const backupsOpen = ref(false)
 
-function exportDb() {
-  exportDatabaseFile()
+const DAY_MS = 24 * 60 * 60 * 1000
+const EXPORT_REMINDER_DAYS = 7
+
+const exportAgeDays = computed(() =>
+  store.lastExportAt ? Math.floor((Date.now() - store.lastExportAt) / DAY_MS) : null
+)
+const exportOverdue = computed(() =>
+  exportAgeDays.value === null || exportAgeDays.value >= EXPORT_REMINDER_DAYS
+)
+const exportAgeLabel = computed(() =>
+  exportAgeDays.value === null ? 'nunca' : `hace ${exportAgeDays.value} d`
+)
+const exportTitle = computed(() => {
+  const base = 'Descargar la base de datos completa como archivo .sqlite'
+  if (exportAgeDays.value === null) return `${base}. Todavía no se exportó ningún respaldo.`
+  return `${base}. Último respaldo: ${new Date(store.lastExportAt).toLocaleString('es-AR')}.`
+})
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })
+}
+
+function formatSize(bytes) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
+}
+
+async function restore(id) {
+  backupsOpen.value = false
+  await store.restoreBackup(id)
 }
 </script>

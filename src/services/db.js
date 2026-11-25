@@ -1,26 +1,49 @@
 import { get, set } from 'idb-keyval'
-import { migrateDatabase, setSchemaVersion } from './migrations.js'
+import { migrateDatabase, setSchemaVersion, getSchemaVersion, SCHEMA_VERSION } from './migrations.js'
+import { saveBackup, markExported } from './storageSafety.js'
 
 const DB_STORAGE_KEY = 'cubicacion_pozos_sqlite_db'
 let dbInstance = null
+// false cuando otra pestaña tomó el control de la base: esta no debe sobrescribirla
+let writesEnabled = true
 
-export async function getDatabase() {
-  if (dbInstance) return dbInstance
+export function setWritesEnabled(enabled) {
+  writesEnabled = enabled
+}
 
-  // Obtener initSqlJs cargado en window por /sql-wasm.js
+async function loadSql() {
+  // initSqlJs lo carga en window el script /sql-wasm.js
   const initSqlJs = window.initSqlJs
   if (!initSqlJs) {
     throw new Error('No se pudo encontrar el motor SQLite (initSqlJs no está disponible).')
   }
+  return initSqlJs({ locateFile: file => `/${file}` })
+}
 
-  const SQL = await initSqlJs({
-    locateFile: file => `/${file}`
-  })
+/**
+ * Abre una base a partir de sus bytes y la lleva al esquema actual.
+ * Antes de migrar guarda una copia de la versión original.
+ */
+async function openAndMigrate(SQL, bytes) {
+  const db = new SQL.Database(new Uint8Array(bytes))
+  const version = getSchemaVersion(db)
+  if (version < SCHEMA_VERSION) {
+    await saveBackup(bytes, `Antes de actualizar el formato (v${version} → v${SCHEMA_VERSION})`)
+  }
+  const migrated = migrateDatabase(db)
+  return { db, migrated }
+}
+
+export async function getDatabase() {
+  if (dbInstance) return dbInstance
+
+  const SQL = await loadSql()
 
   const savedDbData = await get(DB_STORAGE_KEY)
   if (savedDbData) {
-    dbInstance = new SQL.Database(new Uint8Array(savedDbData))
-    if (migrateDatabase(dbInstance)) await persistDatabase()
+    const { db, migrated } = await openAndMigrate(SQL, savedDbData)
+    dbInstance = db
+    if (migrated) await persistDatabase()
   } else {
     dbInstance = new SQL.Database()
     initTables(dbInstance)
@@ -106,7 +129,7 @@ function seedInitialData(db) {
 }
 
 export async function persistDatabase() {
-  if (!dbInstance) return
+  if (!dbInstance || !writesEnabled) return
   const binaryData = dbInstance.export()
   await set(DB_STORAGE_KEY, binaryData)
 }
@@ -120,16 +143,30 @@ export async function exportDatabaseFile() {
   a.href = url
   a.download = `cubicacion_pozos_${new Date().toISOString().slice(0, 10)}.sqlite`
   a.click()
-  URL.revokeObjectURL(url)
+  // Revocar después de que el navegador tome el archivo (Firefox lo necesita)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  return markExported()
+}
+
+/** Bytes de la base actual, por ejemplo para una copia de seguridad. */
+export function exportDatabaseBytes() {
+  return dbInstance ? dbInstance.export() : null
+}
+
+/**
+ * Reemplaza la base actual por otra (copia o archivo importado).
+ * La base actual se guarda antes como copia para poder volver atrás.
+ */
+export async function replaceDatabase(bytes, motivo) {
+  const SQL = await loadSql()
+  const { db } = await openAndMigrate(SQL, bytes) // falla antes de tocar la base actual
+  if (dbInstance) await saveBackup(dbInstance.export(), motivo)
+  dbInstance = db
+  await persistDatabase()
+  return dbInstance
 }
 
 export async function importDatabaseFile(file) {
   const buffer = await file.arrayBuffer()
-  const initSqlJs = window.initSqlJs
-  const SQL = await initSqlJs({ locateFile: file => `/${file}` })
-  const imported = new SQL.Database(new Uint8Array(buffer))
-  migrateDatabase(imported) // valida la versión antes de reemplazar la base actual
-  dbInstance = imported
-  await persistDatabase()
-  return dbInstance
+  return replaceDatabase(buffer, 'Antes de importar un archivo')
 }

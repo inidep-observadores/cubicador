@@ -1,12 +1,26 @@
 import { defineStore } from 'pinia'
-import { getDatabase, persistDatabase } from '../services/db'
+import {
+  getDatabase, persistDatabase, setWritesEnabled, exportDatabaseFile,
+  exportDatabaseBytes, replaceDatabase
+} from '../services/db'
+import {
+  requestPersistentStorage, acquireTabLock, ensureDailyBackup, listBackupsInfo,
+  getBackupData, getLastExport
+} from '../services/storageSafety'
 import { GEOMETRY_TYPES, calculateAnalyticalTotal } from '../services/geometryCatalog'
 import { buildCompositePozo } from '../services/csgService'
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
     isLoading: true,
+    loadError: null,
     db: null,
+
+    // Protecciones del almacenamiento
+    storagePersisted: null, // true/false; null = el navegador no informa
+    tabStatus: 'ok', // 'ok' | 'ocupada' (otra pestaña la tiene) | 'desplazada' (otra la tomó)
+    backups: [], // copias automáticas dentro del navegador (sin el binario)
+    lastExportAt: null, // última exportación a archivo .sqlite (ms)
 
     // Buque y Pozo actual
     buques: [],
@@ -84,13 +98,114 @@ export const useEditorStore = defineStore('editor', {
     async init() {
       this.isLoading = true
       try {
-        this.db = await getDatabase()
-        await this.loadBuques()
-        if (this.buques.length > 0) {
-          await this.selectBuque(this.buques[0].id)
+        this.storagePersisted = await requestPersistentStorage()
+        const lock = await acquireTabLock({ onLost: () => this.onTabLockLost() })
+        if (lock === 'ocupada') {
+          this.tabStatus = 'ocupada'
+          return
         }
+        await this.openDatabase()
       } catch (err) {
         console.error('Error al inicializar base de datos SQLite:', err)
+        this.loadError = err.message || String(err)
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async openDatabase() {
+      this.tabStatus = 'ok'
+      setWritesEnabled(true)
+      this.db = await getDatabase()
+      await this.reloadFromDb()
+      try {
+        await ensureDailyBackup(exportDatabaseBytes())
+      } catch (err) {
+        console.warn('No se pudo guardar la copia diaria:', err)
+      }
+      await this.refreshBackupInfo()
+    },
+
+    async reloadFromDb() {
+      this.selectedBlockId = null
+      await this.loadBuques()
+      if (this.buques.length > 0) {
+        await this.selectBuque(this.buques[0].id)
+      } else {
+        this.selectedBuqueId = null
+        this.pozos = []
+        this.selectedPozoId = null
+        this.bloques = []
+      }
+    },
+
+    async refreshBackupInfo() {
+      this.backups = await listBackupsInfo()
+      this.lastExportAt = await getLastExport()
+    },
+
+    // --- Pestaña única ---
+
+    /** Toma el control de la base desde esta pestaña (la otra queda bloqueada). */
+    async useInThisTab() {
+      this.isLoading = true
+      try {
+        await acquireTabLock({ steal: true, onLost: () => this.onTabLockLost() })
+        await this.openDatabase()
+      } catch (err) {
+        this.loadError = err.message || String(err)
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    /** Otra pestaña tomó el control: esta deja de escribir para no pisar sus datos. */
+    onTabLockLost() {
+      clearTimeout(this._debounceTimer)
+      clearTimeout(this._debounceVolTimer)
+      this._debounceTimer = null
+      this._debounceVolTimer = null
+      setWritesEnabled(false)
+      this.tabStatus = 'desplazada'
+    },
+
+    /** Guarda ya lo pendiente (al cerrar u ocultar la pestaña). */
+    flushPendingSave() {
+      if (this.tabStatus !== 'ok') return
+      clearTimeout(this._debounceVolTimer)
+      this._debounceVolTimer = null
+      if (this._debounceTimer) {
+        clearTimeout(this._debounceTimer)
+        this._debounceTimer = null
+        this.updateVolumenReal()
+        this.saveBloquesToDb()
+      } else {
+        persistDatabase()
+      }
+    },
+
+    // --- Copias y respaldos ---
+
+    async exportDatabase() {
+      this.flushPendingSave()
+      this.lastExportAt = await exportDatabaseFile()
+    },
+
+    async restoreBackup(id) {
+      const copia = this.backups.find(c => c.id === id)
+      if (!copia) return
+      const fecha = new Date(copia.fecha).toLocaleString('es-AR')
+      if (!confirm(`¿Restaurar la copia del ${fecha}?\n\nLa base actual se guardará como copia antes de reemplazarla.`)) return
+      this.isLoading = true
+      try {
+        this.flushPendingSave()
+        const data = await getBackupData(id)
+        if (!data) throw new Error('La copia ya no existe.')
+        this.db = await replaceDatabase(data, 'Antes de restaurar una copia')
+        await this.reloadFromDb()
+        await this.refreshBackupInfo()
+      } catch (err) {
+        alert(`No se pudo restaurar la copia: ${err.message || err}`)
       } finally {
         this.isLoading = false
       }
@@ -368,6 +483,7 @@ export const useEditorStore = defineStore('editor', {
       this.updateVolumenRealDebounced()
       if (this._debounceTimer) clearTimeout(this._debounceTimer)
       this._debounceTimer = setTimeout(() => {
+        this._debounceTimer = null
         this.saveBloquesToDb()
       }, 300)
     },
