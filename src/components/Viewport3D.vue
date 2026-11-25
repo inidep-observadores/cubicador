@@ -264,6 +264,7 @@ function initThree() {
         store.updateBlockProperty(store.selectedBlock.id, 'pos_y', snappedPos.pos_y)
         store.updateBlockProperty(store.selectedBlock.id, 'pos_z', snappedPos.pos_z)
       }
+      store.updateVolumenReal()
       store.saveBloquesToDb()
       store.pushHistoryState()
     }

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { getDatabase, persistDatabase } from '../services/db'
 import { GEOMETRY_TYPES, calculateAnalyticalTotal } from '../services/geometryCatalog'
+import { buildCompositePozo } from '../services/csgService'
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
@@ -49,7 +50,14 @@ export const useEditorStore = defineStore('editor', {
     selectedBlock(state) {
       return state.bloques.find(b => b.id === state.selectedBlockId) || null
     },
+    volumenNominal(state) {
+      return calculateAnalyticalTotal(state.bloques)
+    },
     volumenTotal(state) {
+      // Prioridad: volumen real calculado por CSG considerando intersecciones espaciales exactas
+      if (state.volumenMallaCSG > 0) {
+        return state.volumenMallaCSG
+      }
       return calculateAnalyticalTotal(state.bloques)
     },
     capturaEstimadaKg(state) {
@@ -156,6 +164,7 @@ export const useEditorStore = defineStore('editor', {
       if (this.bloques.length > 0 && !this.selectedBlockId) {
         this.selectedBlockId = this.bloques[0].id
       }
+      this.updateVolumenReal()
     },
 
     addBlockFromPalette(tipoFigura, operacion = 'UNION') {
@@ -269,6 +278,36 @@ export const useEditorStore = defineStore('editor', {
       }
     },
 
+    updateVolumenReal() {
+      if (!this.bloques || this.bloques.length === 0) {
+        this.volumenMallaCSG = 0
+        return
+      }
+      try {
+        const uniones = this.bloques.filter(b => b.operacion === 'UNION')
+        if (uniones.length === 0) {
+          this.volumenMallaCSG = 0
+          return
+        }
+        const res = buildCompositePozo(this.bloques)
+        if (res && res.volume !== undefined) {
+          this.volumenMallaCSG = res.volume
+          if (this.db && this.selectedPozoId) {
+            this.db.run("UPDATE pozos SET volumen_total = ? WHERE id = ?", [this.volumenTotal, this.selectedPozoId])
+          }
+        }
+      } catch (err) {
+        console.warn('Error al computar volumen CSG con intersecciones:', err)
+      }
+    },
+
+    updateVolumenRealDebounced() {
+      if (this._debounceVolTimer) clearTimeout(this._debounceVolTimer)
+      this._debounceVolTimer = setTimeout(() => {
+        this.updateVolumenReal()
+      }, 150)
+    },
+
     async saveBloquesToDb() {
       if (!this.db || !this.selectedPozoId) return
       try {
@@ -317,6 +356,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     saveBloquesToDbDebounced() {
+      this.updateVolumenRealDebounced()
       if (this._debounceTimer) clearTimeout(this._debounceTimer)
       this._debounceTimer = setTimeout(() => {
         this.saveBloquesToDb()
@@ -346,6 +386,7 @@ export const useEditorStore = defineStore('editor', {
       if (!this.canUndo) return
       this.historyIndex--
       this.bloques = JSON.parse(this.history[this.historyIndex])
+      this.updateVolumenReal()
       this.saveBloquesToDb()
     },
 
@@ -353,6 +394,7 @@ export const useEditorStore = defineStore('editor', {
       if (!this.canRedo) return
       this.historyIndex++
       this.bloques = JSON.parse(this.history[this.historyIndex])
+      this.updateVolumenReal()
       this.saveBloquesToDb()
     }
   }

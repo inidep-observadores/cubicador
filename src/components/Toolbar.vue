@@ -78,15 +78,17 @@
       <div class="text-center min-w-[130px]">
         <div class="flex items-center justify-center gap-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
           <span>Volumen del Pozo</span>
-          <span v-if="store.modelMode === 'solidoFinal'" class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">CSG</span>
+          <span class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30" title="Volumen espacial real considerando intersecciones y recortes 3D">Real 3D</span>
         </div>
         <div class="text-xl font-extrabold text-sky-400 font-mono flex items-baseline justify-center gap-1">
           <span>{{ store.volumenTotal.toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">m³</span>
         </div>
-        <div v-if="store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0" class="text-[9px] text-slate-400 font-mono flex items-center justify-center gap-1">
-          <span>Malla 3D: {{ store.volumenMallaCSG.toFixed(2) }} m³</span>
-          <span v-if="Math.abs(store.volumenMallaCSG - store.volumenTotal) < 0.05" class="text-emerald-400 font-bold" title="Cálculo analítico y malla 3D coinciden exactamente">✓</span>
+        <div v-if="Math.abs(store.volumenNominal - store.volumenTotal) > 0.05" class="text-[9px] text-amber-400/90 font-mono flex items-center justify-center gap-1" :title="'Suma nominal de piezas: ' + store.volumenNominal.toFixed(2) + ' m³ (sin considerar intersección espacial)'">
+          <span>Nominal: {{ store.volumenNominal.toFixed(2) }} m³</span>
+        </div>
+        <div v-else class="text-[9px] text-emerald-400/80 font-mono flex items-center justify-center gap-1">
+          <span>✓ Intersección exacta</span>
         </div>
       </div>
 
