@@ -1,5 +1,5 @@
 <template>
-  <aside class="w-84 bg-slate-900/95 border-l border-slate-800 flex flex-col h-full select-none z-20">
+  <aside class="w-[21rem] shrink-0 bg-slate-900/95 border-l border-slate-800 flex flex-col h-full select-none z-20">
     <!-- Encabezado de Selección -->
     <div class="p-3 border-b border-slate-800 flex items-center justify-between">
       <div class="flex items-center space-x-2">

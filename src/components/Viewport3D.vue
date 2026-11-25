@@ -164,9 +164,29 @@ onBeforeUnmount(() => {
   if (renderer) renderer.dispose()
 })
 
+function isEditable(el) {
+  return el && (
+    el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable
+  )
+}
+
 function onKeyDown(e) {
-  // Si está escribiendo en un input, ignorar atajos
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
+  // Mientras se escribe en un campo, el teclado es del campo (incluido su propio Ctrl+Z)
+  if (isEditable(e.target)) return
+
+  // Deshacer / Rehacer: Ctrl+Z, Ctrl+Y y Ctrl+Shift+Z (Cmd en Mac)
+  if (e.ctrlKey || e.metaKey) {
+    const key = e.key.toLowerCase()
+    if (key === 'z' && !e.shiftKey) {
+      e.preventDefault()
+      store.undo()
+    } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+      e.preventDefault()
+      store.redo()
+    }
+    return // no tomar las combinaciones con Ctrl como atajos de una letra
+  }
+  if (e.altKey) return
 
   if (e.key === 'r' || e.key === 'R' || e.key === 'e' || e.key === 'E') {
     store.transformMode = 'rotate'
@@ -178,8 +198,10 @@ function onKeyDown(e) {
   } else if (e.key === 'Escape') {
     store.transformMode = 'translate'
   } else if (e.key === 'Delete' || e.key === 'Del') {
-    if (store.selectedBlockId) {
-      store.deleteBlock(store.selectedBlockId)
+    const bloque = store.selectedBlock
+    // Una tecla se presiona por error con facilidad: confirmar (igual se puede deshacer)
+    if (bloque && confirm(`¿Eliminar "${bloque.nombre}"?\n\nSe puede deshacer con Ctrl+Z.`)) {
+      store.deleteBlock(bloque.id)
     }
   }
 }

@@ -1,5 +1,5 @@
 <template>
-  <aside class="w-80 bg-slate-900/95 border-r border-slate-800 flex flex-col h-full select-none z-20">
+  <aside class="w-80 shrink-0 bg-slate-900/95 border-r border-slate-800 flex flex-col h-full select-none z-20">
     <!-- Encabezado con buscador / filtro de categorías -->
     <div class="p-3 border-b border-slate-800 space-y-2">
       <div class="flex items-center justify-between">

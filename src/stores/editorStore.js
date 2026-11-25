@@ -10,6 +10,10 @@ import {
 import { GEOMETRY_TYPES, calculateAnalyticalTotal } from '../services/geometryCatalog'
 import { buildCompositePozo } from '../services/csgService'
 
+const HISTORY_LIMIT = 50
+// Las ediciones continuas se agrupan en un solo paso al quedar quietas este tiempo
+const HISTORY_DEBOUNCE_MS = 600
+
 export const useEditorStore = defineStore('editor', {
   state: () => ({
     isLoading: true,
@@ -47,6 +51,7 @@ export const useEditorStore = defineStore('editor', {
     // Historial para Undo / Redo
     history: [],
     historyIndex: -1,
+    historyPending: false, // hay una edición continua todavía sin registrar
 
     // Modo modal / diálogos
     isProjectModalOpen: false,
@@ -87,7 +92,7 @@ export const useEditorStore = defineStore('editor', {
       return this.capturaEstimadaKg / 1000
     },
     canUndo(state) {
-      return state.historyIndex > 0
+      return state.historyIndex > 0 || state.historyPending
     },
     canRedo(state) {
       return state.historyIndex < state.history.length - 1
@@ -167,6 +172,15 @@ export const useEditorStore = defineStore('editor', {
       this._debounceVolTimer = null
       setWritesEnabled(false)
       this.tabStatus = 'desplazada'
+    },
+
+    /**
+     * Si hay una edición esperando para guardarse, la guarda ya en el pozo actual.
+     * Se llama antes de cambiar de pozo: si no, el guardado diferido se haría
+     * sobre el pozo nuevo y la edición del anterior se perdería.
+     */
+    savePendingEditsNow() {
+      if (this._debounceTimer) this.flushPendingSave()
     },
 
     /** Guarda ya lo pendiente (al cerrar u ocultar la pestaña). */
@@ -249,6 +263,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async selectBuque(buqueId) {
+      this.savePendingEditsNow()
       this.selectedBuqueId = buqueId
       await this.loadPozos(buqueId)
       if (this.pozos.length > 0) {
@@ -272,6 +287,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async selectPozo(pozoId) {
+      this.savePendingEditsNow()
       this.selectedPozoId = pozoId
       await this.loadBloques(pozoId)
       this.resetHistory()
@@ -305,9 +321,8 @@ export const useEditorStore = defineStore('editor', {
       }
       stmt.free()
       this.bloques = list
-      if (this.bloques.length > 0 && !this.selectedBlockId) {
-        this.selectedBlockId = this.bloques[0].id
-      }
+      // Al cambiar de pozo, la selección anterior pertenece a otro pozo
+      this.ensureValidSelection()
       this.updateVolumenReal()
     },
 
@@ -322,7 +337,7 @@ export const useEditorStore = defineStore('editor', {
 
       // Posicionar convenientemente
       const nuevoBloque = {
-        id: Date.now(),
+        id: this.nextBlockId(),
         pozo_id: this.selectedPozoId,
         orden: this.bloques.length + 1,
         nombre: `${def.nombre.split(' ')[0]} ${this.bloques.length + 1}`,
@@ -356,12 +371,14 @@ export const useEditorStore = defineStore('editor', {
       if (!b) return
       // Nunca guardar NaN/Infinity: dejarían la pieza con volumen inválido
       if (typeof value === 'number' && !Number.isFinite(value)) return
+      if (b[property] === value) return
       b[property] = value
       const def = GEOMETRY_TYPES[b.tipo_figura]
       if (def) {
         b.volumen_individual = def.calculateVolume(b)
       }
       this.saveBloquesToDbDebounced()
+      this.pushHistoryStateDebounced()
     },
 
     deleteBlock(blockId) {
@@ -379,7 +396,7 @@ export const useEditorStore = defineStore('editor', {
       const original = this.bloques.find(b => b.id === blockId)
       if (!original) return
       const clon = JSON.parse(JSON.stringify(original))
-      clon.id = Date.now()
+      clon.id = this.nextBlockId()
       clon.nombre = `${original.nombre} (Copia)`
       clon.orden = this.bloques.length + 1
       clon.pos_x += 1.0
@@ -401,9 +418,8 @@ export const useEditorStore = defineStore('editor', {
       if (!confirm('¿Deseas reiniciar este pozo con una figura base limpia?')) return
       this.bloques = []
       this.selectedBlockId = null
+      // addBlockFromPalette ya registra el historial y guarda
       this.addBlockFromPalette('caja', 'UNION')
-      this.pushHistoryState()
-      this.saveBloquesToDb()
     },
 
     async createNewPozo() {
@@ -421,6 +437,8 @@ export const useEditorStore = defineStore('editor', {
       if (nuevo) {
         await this.selectPozo(nuevo.id)
         this.addBlockFromPalette('caja', 'UNION')
+        // El pozo nace con su caja base: que deshacer no lo deje vacío
+        this.resetHistory()
       }
     },
 
@@ -510,39 +528,92 @@ export const useEditorStore = defineStore('editor', {
       }, 300)
     },
 
-    // Manejo de historial (Deshacer/Rehacer)
+    // --- Historial (Deshacer / Rehacer) ---
+    // Cada entrada es una foto de los bloques. Las acciones puntuales (agregar,
+    // borrar, cambiar rol…) la registran enseguida; las ediciones continuas
+    // (escribir una medida, arrastrar) se agrupan y se registran al quedar quietas.
+
     resetHistory() {
+      clearTimeout(this._historyTimer)
+      this._historyTimer = null
+      this.historyPending = false
       this.history = [JSON.stringify(this.bloques)]
       this.historyIndex = 0
     },
 
     pushHistoryState() {
+      clearTimeout(this._historyTimer)
+      this._historyTimer = null
+      this.historyPending = false
+
+      const snapshot = JSON.stringify(this.bloques)
+      // Sin cambios respecto de la entrada actual: no duplicar
+      if (snapshot === this.history[this.historyIndex]) return
+
       // Si estamos en un punto anterior, descartar los futuros
       if (this.historyIndex < this.history.length - 1) {
         this.history = this.history.slice(0, this.historyIndex + 1)
       }
-      this.history.push(JSON.stringify(this.bloques))
+      this.history.push(snapshot)
       this.historyIndex++
-      if (this.history.length > 30) {
+      if (this.history.length > HISTORY_LIMIT) {
         this.history.shift()
         this.historyIndex--
       }
     },
 
-    undo() {
-      if (!this.canUndo) return
-      this.historyIndex--
+    /** Registra en el historial una edición continua cuando deja de cambiar. */
+    pushHistoryStateDebounced() {
+      clearTimeout(this._historyTimer)
+      this.historyPending = true
+      this._historyTimer = setTimeout(() => this.pushHistoryState(), HISTORY_DEBOUNCE_MS)
+    },
+
+    /** Si quedó una edición sin registrar, la registra ya (antes de deshacer). */
+    flushPendingHistory() {
+      if (this._historyTimer || this.historyPending) this.pushHistoryState()
+    },
+
+    applyHistoryEntry() {
       this.bloques = JSON.parse(this.history[this.historyIndex])
+      this.ensureValidSelection()
       this.updateVolumenReal()
       this.saveBloquesToDb()
     },
 
+    undo() {
+      this.flushPendingHistory()
+      if (this.historyIndex <= 0) return
+      this.historyIndex--
+      this.applyHistoryEntry()
+    },
+
     redo() {
+      this.flushPendingHistory()
       if (!this.canRedo) return
       this.historyIndex++
-      this.bloques = JSON.parse(this.history[this.historyIndex])
-      this.updateVolumenReal()
-      this.saveBloquesToDb()
+      this.applyHistoryEntry()
+    },
+
+    /** Mantiene la selección en una pieza que exista en el pozo actual. */
+    ensureValidSelection() {
+      if (!this.bloques.some(b => b.id === this.selectedBlockId)) {
+        this.selectedBlockId = this.bloques.length > 0 ? this.bloques[0].id : null
+      }
+    },
+
+    /**
+     * Identificador nuevo para una pieza. Los ids son únicos en toda la tabla
+     * (no por pozo), así que se toma el mayor entre la base y la memoria.
+     */
+    nextBlockId() {
+      let max = 0
+      if (this.db) {
+        const res = this.db.exec('SELECT COALESCE(MAX(id), 0) FROM bloques')
+        max = Number(res[0]?.values[0][0]) || 0
+      }
+      for (const b of this.bloques) max = Math.max(max, Number(b.id) || 0)
+      return max + 1
     }
   }
 })
