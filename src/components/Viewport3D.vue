@@ -254,11 +254,14 @@ function initThree() {
   transformControls.rotationSnap = THREE.MathUtils.degToRad(15) // Snap cada 15° al rotar
   scene.add(transformControls.getHelper())
 
+  let isDraggingGizmo = false
+
   transformControls.addEventListener('dragging-changed', (event) => {
+    isDraggingGizmo = Boolean(event.value)
     orbitControls.enabled = !event.value
     if (!event.value && store.selectedBlock) {
       if (store.snapToGrid) {
-        // Snapping inteligente entre caras de bloques adyacentes
+        // Snapping inteligente entre caras de bloques adyacentes solo al soltar el arrastre manual
         const snappedPos = snapBlockToBounds(store.selectedBlock, store.bloques, 0.35)
         store.updateBlockProperty(store.selectedBlock.id, 'pos_x', snappedPos.pos_x)
         store.updateBlockProperty(store.selectedBlock.id, 'pos_y', snappedPos.pos_y)
@@ -271,7 +274,9 @@ function initThree() {
   })
 
   transformControls.addEventListener('change', () => {
-    if (transformControls.object && store.selectedBlock) {
+    // SÓLO aplicar snap e interactuar si el usuario está arrastrando el gizmo en pantalla
+    // Esto evita que al tipear valores manuales en el panel sean pisados por el redondeo del gizmo
+    if (isDraggingGizmo && transformControls.object && store.selectedBlock) {
       const obj = transformControls.object
       if (store.snapToGrid) {
         const step = store.gridStep

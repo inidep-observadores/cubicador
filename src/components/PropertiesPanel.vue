@@ -108,37 +108,37 @@
           <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400">
             Ubicación en Bodega
           </h3>
-          <span class="text-[10px] text-slate-500 font-mono">Snap 0.25m</span>
+          <span class="text-[10px] text-slate-500 font-mono">Paso 0.01m</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Eje X (Eslora)</span>
             <input 
               type="number" 
-              step="0.25" 
+              step="0.01" 
               :value="currentBlock.pos_x" 
               @input="updateProp('pos_x', Number($event.target.value))"
-              class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
+              class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Eje Y (Puntal)</span>
             <input 
               type="number" 
-              step="0.25" 
+              step="0.01" 
               :value="currentBlock.pos_y" 
               @input="updateProp('pos_y', Number($event.target.value))"
-              class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
+              class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Eje Z (Manga)</span>
             <input 
               type="number" 
-              step="0.25" 
+              step="0.01" 
               :value="currentBlock.pos_z" 
               @input="updateProp('pos_z', Number($event.target.value))"
-              class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
+              class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
         </div>
