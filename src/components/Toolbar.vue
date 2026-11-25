@@ -31,6 +31,20 @@
               {{ p.nombre }}
             </option>
           </select>
+          <button 
+            @click="store.createNewPozo()"
+            title="Crear un nuevo pozo en este buque"
+            class="p-1 hover:bg-slate-800 text-sky-400 hover:text-white rounded border border-slate-700 text-xs font-bold transition"
+          >
+            + Nuevo
+          </button>
+          <button 
+            @click="store.clearCurrentPozo()"
+            title="Limpiar este pozo y empezar con una caja base limpia"
+            class="p-1 hover:bg-slate-800 text-slate-400 hover:text-amber-300 rounded border border-slate-700 text-xs transition"
+          >
+            ↺ Reiniciar
+          </button>
         </div>
       </div>
     </div>

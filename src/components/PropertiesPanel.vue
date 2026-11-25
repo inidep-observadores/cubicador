@@ -37,15 +37,33 @@
           class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-sky-500 font-medium"
         />
 
-        <div class="flex items-center justify-between pt-1">
-          <span class="text-xs text-slate-300">Operación en el Pozo:</span>
-          <button 
-            @click="store.toggleBlockOperation(currentBlock.id)"
-            :class="currentBlock.operacion === 'UNION' ? 'bg-sky-600 hover:bg-sky-500 text-white' : 'bg-rose-600 hover:bg-rose-500 text-white'"
-            class="px-3 py-1 rounded-lg text-xs font-bold transition shadow"
-          >
-            {{ currentBlock.operacion === 'UNION' ? 'Sumar al Pozo (+)' : 'Restar del Pozo (-)' }}
-          </button>
+        <div class="pt-2">
+          <label class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+            Rol de la Pieza en el Pozo
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <button 
+              @click="setOperation('UNION')"
+              :class="currentBlock.operacion === 'UNION' 
+                ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/30 border-sky-400' 
+                : 'bg-slate-800 text-slate-400 hover:text-white border-slate-700'"
+              class="flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg border text-xs font-bold transition active:scale-95"
+            >
+              <Plus class="w-4 h-4 text-sky-200" />
+              <span>Sumar (+ Unión)</span>
+            </button>
+
+            <button 
+              @click="setOperation('SUBSTRACCION')"
+              :class="currentBlock.operacion === 'SUBSTRACCION' 
+                ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30 border-rose-400' 
+                : 'bg-slate-800 text-slate-400 hover:text-white border-slate-700'"
+              class="flex items-center justify-center space-x-1.5 py-2 px-2 rounded-lg border text-xs font-bold transition active:scale-95"
+            >
+              <Minus class="w-4 h-4 text-rose-200" />
+              <span>Restar (- Corte)</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -277,7 +295,7 @@
 import { computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
-import { Sliders, BoxSelect, Copy, Trash2, RotateCw } from 'lucide-vue-next'
+import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus } from 'lucide-vue-next'
 
 const store = useEditorStore()
 
@@ -288,6 +306,13 @@ const explanationText = computed(() => {
   if (!currentBlock.value || !currentDef.value) return ''
   return currentDef.value.explainCalculation ? currentDef.value.explainCalculation(currentBlock.value) : ''
 })
+
+function setOperation(op) {
+  if (!currentBlock.value) return
+  currentBlock.value.operacion = op
+  store.pushHistoryState()
+  store.saveBloquesToDb()
+}
 
 function updateProp(prop, val) {
   if (currentBlock.value) {

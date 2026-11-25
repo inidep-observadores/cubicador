@@ -242,6 +242,33 @@ export const useEditorStore = defineStore('editor', {
       this.saveBloquesToDb()
     },
 
+    clearCurrentPozo() {
+      if (!confirm('¿Deseas reiniciar este pozo con una figura base limpia?')) return
+      this.bloques = []
+      this.selectedBlockId = null
+      this.addBlockFromPalette('caja', 'UNION')
+      this.pushHistoryState()
+      this.saveBloquesToDb()
+    },
+
+    async createNewPozo() {
+      const nombre = prompt('Nombre del nuevo pozo (ej: Pozo N° 2 Estribor):', `Pozo N° ${this.pozos.length + 1}`)
+      if (!nombre || !nombre.trim()) return
+
+      if (!this.db || !this.selectedBuqueId) return
+      this.db.run(
+        "INSERT INTO pozos (buque_id, nombre, volumen_total, densidad_estiba, notas) VALUES (?, ?, 0, 800, '')",
+        [this.selectedBuqueId, nombre.trim()]
+      )
+      await persistDatabase()
+      await this.loadPozos(this.selectedBuqueId)
+      const nuevo = this.pozos[this.pozos.length - 1]
+      if (nuevo) {
+        await this.selectPozo(nuevo.id)
+        this.addBlockFromPalette('caja', 'UNION')
+      }
+    },
+
     async saveBloquesToDb() {
       if (!this.db || !this.selectedPozoId) return
       try {

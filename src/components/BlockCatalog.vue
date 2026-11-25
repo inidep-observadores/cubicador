@@ -61,24 +61,15 @@
           {{ def.formula }}
         </div>
 
-        <!-- Botones de inserción rápida -->
-        <div class="grid grid-cols-2 gap-2 mt-2.5 pt-2 border-t border-slate-700/50">
+        <!-- Botón de inserción directa neutra -->
+        <div class="mt-2.5 pt-2 border-t border-slate-700/50">
           <button 
             @click="store.addBlockFromPalette(key, 'UNION')"
-            class="flex items-center justify-center space-x-1 bg-sky-600/90 hover:bg-sky-500 text-white rounded-lg py-1.5 text-xs font-semibold transition shadow active:scale-95"
-            title="Añadir a la forma del pozo (Unión +)"
+            class="w-full flex items-center justify-center space-x-1.5 bg-sky-600/90 hover:bg-sky-500 text-white rounded-lg py-2 text-xs font-semibold transition shadow active:scale-95"
+            title="Añadir esta figura a la escena de trabajo"
           >
-            <Plus class="w-3.5 h-3.5" />
-            <span>Unir (+)</span>
-          </button>
-          
-          <button 
-            @click="store.addBlockFromPalette(key, 'SUBSTRACCION')"
-            class="flex items-center justify-center space-x-1 bg-rose-600/85 hover:bg-rose-500 text-white rounded-lg py-1.5 text-xs font-semibold transition shadow active:scale-95"
-            title="Restar como hueco o columna (Sustracción -)"
-          >
-            <Minus class="w-3.5 h-3.5" />
-            <span>Restar (-)</span>
+            <Plus class="w-4 h-4 text-sky-200" />
+            <span>Añadir a la Escena</span>
           </button>
         </div>
       </div>

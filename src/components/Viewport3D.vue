@@ -168,6 +168,10 @@ function onKeyDown(e) {
     toggleTransformMode()
   } else if (e.key === 'Escape') {
     store.transformMode = 'translate'
+  } else if (e.key === 'Delete' || e.key === 'Del') {
+    if (store.selectedBlockId) {
+      store.deleteBlock(store.selectedBlockId)
+    }
   }
 }
 
