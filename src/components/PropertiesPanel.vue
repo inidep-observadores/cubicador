@@ -315,10 +315,7 @@ const explanationText = computed(() => {
 })
 
 function setOperation(op) {
-  if (!currentBlock.value) return
-  currentBlock.value.operacion = op
-  store.pushHistoryState()
-  store.saveBloquesToDb()
+  if (currentBlock.value) store.setBlockOperation(currentBlock.value.id, op)
 }
 
 function updateProp(prop, val) {

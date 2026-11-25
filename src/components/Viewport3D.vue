@@ -136,6 +136,7 @@ import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
 import { snapBlockToBounds } from '../services/csgService'
 import { computeComposite } from '../services/csgClient'
+import { confirmDialog, dialogState } from '../services/dialog'
 import { Compass, Move3d, Magnet, RotateCw } from 'lucide-vue-next'
 
 const store = useEditorStore()
@@ -353,7 +354,20 @@ function isEditable(el) {
   )
 }
 
+// Una tecla se presiona por error con facilidad: confirmar (igual se puede deshacer)
+async function confirmDeleteBlock(bloque) {
+  const ok = await confirmDialog({
+    title: 'Eliminar pieza',
+    message: `¿Eliminar "${bloque.nombre}"?\n\nSe puede deshacer con Ctrl+Z.`,
+    confirmText: 'Eliminar',
+    danger: true
+  })
+  if (ok) store.deleteBlock(bloque.id)
+}
+
 function onKeyDown(e) {
+  // Con un diálogo abierto, el teclado es del diálogo
+  if (dialogState.open) return
   // Mientras se escribe en un campo, el teclado es del campo (incluido su propio Ctrl+Z)
   if (isEditable(e.target)) return
 
@@ -381,11 +395,7 @@ function onKeyDown(e) {
   } else if (e.key === 'Escape') {
     store.transformMode = 'translate'
   } else if (e.key === 'Delete' || e.key === 'Del') {
-    const bloque = store.selectedBlock
-    // Una tecla se presiona por error con facilidad: confirmar (igual se puede deshacer)
-    if (bloque && confirm(`¿Eliminar "${bloque.nombre}"?\n\nSe puede deshacer con Ctrl+Z.`)) {
-      store.deleteBlock(bloque.id)
-    }
+    if (store.selectedBlock) confirmDeleteBlock(store.selectedBlock)
   }
 }
 

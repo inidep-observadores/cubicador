@@ -69,6 +69,9 @@
         <PropertiesPanel />
       </div>
     </template>
+
+    <!-- Diálogos de confirmación y avisos -->
+    <AppDialog />
   </div>
 </template>
 
@@ -79,6 +82,7 @@ import Toolbar from './components/Toolbar.vue'
 import BlockCatalog from './components/BlockCatalog.vue'
 import Viewport3D from './components/Viewport3D.vue'
 import PropertiesPanel from './components/PropertiesPanel.vue'
+import AppDialog from './components/AppDialog.vue'
 
 const store = useEditorStore()
 

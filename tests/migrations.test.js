@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import initSqlJs from 'sql.js'
-import { initTables } from '../src/services/db.js'
+import { initTables } from '../src/services/schema.js'
 import { migrateDatabase, getSchemaVersion, SCHEMA_VERSION } from '../src/services/migrations.js'
 import { buildCompositePozo, getBlockBounds } from '../src/services/csgService.js'
 
@@ -96,4 +96,21 @@ test('validación: rechaza una tabla incompleta', () => {
     CREATE TABLE pozos (id INTEGER, buque_id INTEGER, nombre TEXT, densidad_estiba REAL);
     CREATE TABLE bloques (id INTEGER, pozo_id INTEGER, nombre TEXT)`)
   assert.throws(() => migrateDatabase(db), /"bloques" le faltan columnas/)
+})
+
+test('esquema: las claves foráneas borran en cascada cuando están activas', () => {
+  const db = baseLegacy()
+  db.run('PRAGMA foreign_keys = ON')
+  db.run('DELETE FROM pozos WHERE id = 2')
+  assert.equal(db.exec('SELECT COUNT(*) FROM bloques WHERE pozo_id = 2')[0].values[0][0], 0)
+  assert.throws(() => db.run(`INSERT INTO bloques (${COLS}) VALUES (99, 999, 1, 'x', 'caja', 'UNION', 1,1,1,0,0,0,0,0,0,0,0,0,0,1)`), /FOREIGN KEY/)
+})
+
+test('sql.js: exportar la base no desactiva las claves foráneas', () => {
+  // La app guarda con export() muchas veces; si una versión nueva de sql.js
+  // reabriera la conexión sin el PRAGMA, las claves foráneas dejarían de aplicarse
+  const db = baseLegacy()
+  db.run('PRAGMA foreign_keys = ON')
+  db.export()
+  assert.equal(db.exec('PRAGMA foreign_keys')[0].values[0][0], 1)
 })

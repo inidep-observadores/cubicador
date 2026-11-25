@@ -7,6 +7,7 @@ import {
   requestPersistentStorage, acquireTabLock, ensureDailyBackup, listBackupsInfo,
   getBackupData, getLastExport
 } from '../services/storageSafety'
+import { confirmDialog, promptDialog, alertDialog } from '../services/dialog'
 import { GEOMETRY_TYPES, calculateAnalyticalTotal } from '../services/geometryCatalog'
 import { computeComposite, compositeKey } from '../services/csgClient'
 
@@ -209,11 +210,14 @@ export const useEditorStore = defineStore('editor', {
     /** Reemplaza la base por un archivo .sqlite exportado antes (con copia previa). */
     async importDatabase(file) {
       if (!file) return
-      const ok = confirm(
-        `¿Importar "${file.name}"?\n\n` +
-        'Reemplazará todos los buques, pozos y piezas actuales. ' +
-        'La base actual se guardará como copia antes de reemplazarla.'
-      )
+      const ok = await confirmDialog({
+        title: 'Importar base de datos',
+        message: `¿Importar "${file.name}"?\n\n` +
+          'Reemplazará todos los buques, pozos y piezas actuales. ' +
+          'La base actual se guardará como copia antes de reemplazarla.',
+        confirmText: 'Importar',
+        danger: true
+      })
       if (!ok) return
       this.isLoading = true
       try {
@@ -222,7 +226,10 @@ export const useEditorStore = defineStore('editor', {
         await this.reloadFromDb()
         await this.refreshBackupInfo()
       } catch (err) {
-        alert(`No se pudo importar el archivo.\n\n${err.message || err}\n\nLa base actual no se modificó.`)
+        await alertDialog({
+          title: 'No se pudo importar el archivo',
+          message: `${err.message || err}\n\nLa base actual no se modificó.`
+        })
       } finally {
         this.isLoading = false
       }
@@ -232,7 +239,13 @@ export const useEditorStore = defineStore('editor', {
       const copia = this.backups.find(c => c.id === id)
       if (!copia) return
       const fecha = new Date(copia.fecha).toLocaleString('es-AR')
-      if (!confirm(`¿Restaurar la copia del ${fecha}?\n\nLa base actual se guardará como copia antes de reemplazarla.`)) return
+      const ok = await confirmDialog({
+        title: 'Restaurar copia',
+        message: `¿Restaurar la copia del ${fecha}?\n\nLa base actual se guardará como copia antes de reemplazarla.`,
+        confirmText: 'Restaurar',
+        danger: true
+      })
+      if (!ok) return
       this.isLoading = true
       try {
         this.flushPendingSave()
@@ -242,7 +255,7 @@ export const useEditorStore = defineStore('editor', {
         await this.reloadFromDb()
         await this.refreshBackupInfo()
       } catch (err) {
-        alert(`No se pudo restaurar la copia: ${err.message || err}`)
+        await alertDialog({ title: 'No se pudo restaurar la copia', message: err.message || String(err) })
       } finally {
         this.isLoading = false
       }
@@ -413,13 +426,25 @@ export const useEditorStore = defineStore('editor', {
     toggleBlockOperation(blockId) {
       const b = this.bloques.find(x => x.id === blockId)
       if (!b) return
-      b.operacion = b.operacion === 'UNION' ? 'SUBSTRACCION' : 'UNION'
+      this.setBlockOperation(blockId, b.operacion === 'UNION' ? 'SUBSTRACCION' : 'UNION')
+    },
+
+    setBlockOperation(blockId, operacion) {
+      const b = this.bloques.find(x => x.id === blockId)
+      if (!b || b.operacion === operacion) return
+      b.operacion = operacion
       this.pushHistoryState()
       this.saveBloquesToDb()
     },
 
-    clearCurrentPozo() {
-      if (!confirm('¿Deseas reiniciar este pozo con una figura base limpia?')) return
+    async clearCurrentPozo() {
+      const ok = await confirmDialog({
+        title: 'Reiniciar pozo',
+        message: 'Se quitarán todas las piezas y el pozo quedará con una caja base.\n\nSe puede deshacer con Ctrl+Z.',
+        confirmText: 'Reiniciar',
+        danger: true
+      })
+      if (!ok) return
       this.bloques = []
       this.selectedBlockId = null
       // addBlockFromPalette ya registra el historial y guarda
@@ -427,17 +452,23 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async createNewPozo() {
-      const nombre = prompt('Nombre del nuevo pozo (ej: Pozo N° 2 Estribor):', `Pozo N° ${this.pozos.length + 1}`)
-      if (!nombre || !nombre.trim()) return
-
       if (!this.db || !this.selectedBuqueId) return
+      const nombre = await promptDialog({
+        title: 'Nuevo pozo',
+        message: 'Nombre del pozo (por ejemplo: Pozo N° 2 Estribor).',
+        defaultValue: `Pozo N° ${this.pozos.length + 1}`,
+        confirmText: 'Crear pozo'
+      })
+      if (!nombre) return
+
       this.db.run(
         "INSERT INTO pozos (buque_id, nombre, volumen_total, densidad_estiba, notas) VALUES (?, ?, 0, 800, '')",
-        [this.selectedBuqueId, nombre.trim()]
+        [this.selectedBuqueId, nombre]
       )
+      const nuevoId = this.db.exec('SELECT last_insert_rowid()')[0].values[0][0]
       await persistDatabase()
       await this.loadPozos(this.selectedBuqueId)
-      const nuevo = this.pozos[this.pozos.length - 1]
+      const nuevo = this.pozos.find(p => p.id === nuevoId)
       if (nuevo) {
         await this.selectPozo(nuevo.id)
         this.addBlockFromPalette('caja', 'UNION')

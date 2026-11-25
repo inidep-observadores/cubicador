@@ -13,7 +13,9 @@ Sistema Web Progresivo (PWA) Offline-First para el modelado tridimensional inter
 2. [02. Arquitectura y Stack Tecnológico](./02-arquitectura-y-stack.md)
    - Enfoque 100% *Offline-First* sin dependencia de servidores.
    - Stack: Vue 3, Three.js, Pinia, SQLite (WASM) + IndexedDB, Tailwind CSS, Vite PWA.
-   - Estructura del proyecto y flujo reactivo de datos.
+   - Esquema de la base, versionado y migraciones.
+   - Protección de los datos y cálculo 3D en segundo plano (Web Worker).
+   - Estructura del proyecto y publicación en un subdirectorio.
 3. [03. Catálogo Geométrico Naval (10 Figuras)](./03-catalogo-geometrico-naval.md)
    - Especificación matemática de las 10 figuras paramétricas oficiales.
    - Fórmulas analíticas, diagramas SVG de cotas y parámetros requeridos.
@@ -28,7 +30,9 @@ Sistema Web Progresivo (PWA) Offline-First para el modelado tridimensional inter
    - Vistas de cámara preconfiguradas y controles orbitales.
    - Modos de edición vs. Pozo Booleano.
    - Snap magnético automático y ajuste fino manual al centímetro.
-   - Gestión y respaldo de bases de datos SQLite locales.
+   - Atajos de teclado, deshacer y validación de campos.
+   - Volumen informado (Real 3D, Calculando, Nominal).
+   - Respaldos, copias automáticas, importación e instalación de la app.
 
 ---
 
@@ -50,6 +54,14 @@ npm install
 # Iniciar servidor de desarrollo local
 npm run dev
 
+# Correr las pruebas (fórmulas, mallas, motor booleano y migraciones)
+npm test
+
 # Generar compilación de producción para PWA
 npm run build
+
+# Regenerar los íconos de la PWA
+npm run icons
 ```
+
+Para publicar en un subdirectorio, ver [02. Arquitectura · Publicación](./02-arquitectura-y-stack.md#7-publicación).
