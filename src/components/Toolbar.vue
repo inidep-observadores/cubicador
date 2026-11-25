@@ -37,10 +37,36 @@
 
     <!-- Indicador Métrico Central: Volumen y Captura -->
     <div class="flex items-center bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-1.5 space-x-6 shadow-inner">
+      <!-- Selector de Modo de Modelo (Piezas vs Booleano CSG) -->
+      <div class="flex bg-slate-900 border border-slate-700/80 rounded-lg p-0.5">
+        <button 
+          @click="store.modelMode = 'edicion'"
+          :class="store.modelMode === 'edicion' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+          title="Modo Edición: manipular y posicionar bloques individuales"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition flex items-center gap-1.5"
+        >
+          <Layers class="w-3.5 h-3.5" />
+          <span>Edición</span>
+        </button>
+        <button 
+          @click="store.modelMode = 'solidoFinal'"
+          :class="store.modelMode === 'solidoFinal' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+          title="Modo Pozo Booleano: ver sólido combinado con cortes reales en la malla"
+          class="px-2.5 py-1 text-xs font-semibold rounded-md transition flex items-center gap-1.5"
+        >
+          <Sparkles class="w-3.5 h-3.5 text-amber-300" />
+          <span>Pozo Booleano</span>
+        </button>
+      </div>
+
+      <div class="h-7 w-px bg-slate-800"></div>
+
       <div class="text-center">
-        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Volumen Calculado</div>
+        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+          {{ store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0 ? 'Vol. Malla Real (CSG)' : 'Volumen Analítico' }}
+        </div>
         <div class="text-xl font-extrabold text-sky-400 font-mono flex items-baseline justify-center gap-1">
-          <span>{{ store.volumenTotal.toFixed(2) }}</span>
+          <span>{{ (store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0 ? store.volumenMallaCSG : store.volumenTotal).toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">m³</span>
         </div>
       </div>
@@ -50,7 +76,7 @@
       <div class="text-center">
         <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Capacidad Captura Est.</div>
         <div class="text-xl font-extrabold text-emerald-400 font-mono flex items-baseline justify-center gap-1">
-          <span>{{ store.capturaEstimadaToneladas.toFixed(2) }}</span>
+          <span>{{ ((store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0 ? store.volumenMallaCSG : store.volumenTotal) * (store.selectedPozo?.densidad_estiba || 800) / 1000).toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">Ton</span>
         </div>
       </div>
@@ -133,7 +159,7 @@
 import { useEditorStore } from '../stores/editorStore'
 import { exportDatabaseFile } from '../services/db'
 import { 
-  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database 
+  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, Sparkles 
 } from 'lucide-vue-next'
 
 const store = useEditorStore()

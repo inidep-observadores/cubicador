@@ -125,6 +125,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
+import { buildCompositePozo, snapBlockToBounds } from '../services/csgService'
 import { Compass, Move3d, Magnet, RotateCw } from 'lucide-vue-next'
 
 const store = useEditorStore()
@@ -133,6 +134,7 @@ const canvasRef = ref(null)
 
 let scene, camera, renderer, orbitControls, transformControls
 let blockMeshGroup = new THREE.Group()
+let csgMeshGroup = new THREE.Group()
 let edgesGroup = new THREE.Group()
 let dimensionsGroup = new THREE.Group()
 let raycaster = new THREE.Raycaster()
@@ -221,6 +223,7 @@ function initThree() {
 
   // Grupos
   scene.add(blockMeshGroup)
+  scene.add(csgMeshGroup)
   scene.add(edgesGroup)
   scene.add(dimensionsGroup)
 
@@ -241,6 +244,13 @@ function initThree() {
   transformControls.addEventListener('dragging-changed', (event) => {
     orbitControls.enabled = !event.value
     if (!event.value && store.selectedBlock) {
+      if (store.snapToGrid) {
+        // Snapping inteligente entre caras de bloques adyacentes
+        const snappedPos = snapBlockToBounds(store.selectedBlock, store.bloques, 0.35)
+        store.updateBlockProperty(store.selectedBlock.id, 'pos_x', snappedPos.pos_x)
+        store.updateBlockProperty(store.selectedBlock.id, 'pos_y', snappedPos.pos_y)
+        store.updateBlockProperty(store.selectedBlock.id, 'pos_z', snappedPos.pos_z)
+      }
       store.saveBloquesToDb()
       store.pushHistoryState()
     }
@@ -318,6 +328,11 @@ function renderBlocks() {
     blockMeshGroup.remove(obj)
     if (obj.geometry) obj.geometry.dispose()
   }
+  while (csgMeshGroup.children.length > 0) {
+    const obj = csgMeshGroup.children[0]
+    csgMeshGroup.remove(obj)
+    if (obj.geometry) obj.geometry.dispose()
+  }
   while (edgesGroup.children.length > 0) {
     const obj = edgesGroup.children[0]
     edgesGroup.remove(obj)
@@ -329,6 +344,61 @@ function renderBlocks() {
     if (obj.geometry) obj.geometry.dispose()
   }
 
+  // --- MODO SÓLIDO FINAL (CSG BOOLEANO) ---
+  if (store.modelMode === 'solidoFinal') {
+    transformControls.detach()
+
+    const result = buildCompositePozo(store.bloques)
+    if (result.mesh && result.mesh.geometry) {
+      store.volumenMallaCSG = result.volume
+      const geom = result.mesh.geometry
+
+      let mat
+      if (store.viewMode === 'alambrico') {
+        mat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true })
+      } else if (store.viewMode === 'rayosX') {
+        mat = new THREE.MeshStandardMaterial({
+          color: 0x0284c7,
+          transparent: true,
+          opacity: 0.35,
+          roughness: 0.25,
+          metalness: 0.15,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        })
+      } else {
+        mat = new THREE.MeshStandardMaterial({
+          color: 0x0284c7,
+          roughness: 0.35,
+          metalness: 0.2,
+          side: THREE.DoubleSide
+        })
+      }
+
+      result.mesh.material = mat
+      result.mesh.castShadow = true
+      result.mesh.receiveShadow = true
+      csgMeshGroup.add(result.mesh)
+
+      // Aristas técnicas de la figura final unida y perforada
+      const edgesGeom = new THREE.EdgesGeometry(geom, 20)
+      const edgesMat = new THREE.LineBasicMaterial({ color: 0x7dd3fc, linewidth: 1.5, transparent: true, opacity: 0.8 })
+      const edgesLine = new THREE.LineSegments(edgesGeom, edgesMat)
+      edgesGroup.add(edgesLine)
+
+      // Cotas envolventes del pozo completo
+      if (store.showDimensions) {
+        const box = new THREE.Box3().setFromObject(result.mesh)
+        const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0xfbbf24))
+        boxHelper.material.opacity = 0.5
+        boxHelper.material.transparent = true
+        dimensionsGroup.add(boxHelper)
+      }
+    }
+    return
+  }
+
+  // --- MODO EDICIÓN INDIVIDUAL ---
   let selectedMesh = null
 
   store.bloques.forEach(b => {
@@ -392,11 +462,6 @@ function renderBlocks() {
       // Si está activo mostrar cotas, dibujar caja de cotas 3D
       if (store.showDimensions) {
         const box = new THREE.Box3().setFromObject(mesh)
-        const size = new THREE.Vector3()
-        box.getSize(size)
-        const center = new THREE.Vector3()
-        box.getCenter(center)
-
         const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0xfbbf24))
         boxHelper.material.opacity = 0.5
         boxHelper.material.transparent = true
@@ -416,6 +481,7 @@ function renderBlocks() {
 watch(() => store.bloques, () => renderBlocks(), { deep: true })
 watch(() => store.selectedBlockId, () => renderBlocks())
 watch(() => store.viewMode, () => renderBlocks())
+watch(() => store.modelMode, () => renderBlocks())
 watch(() => store.showDimensions, () => renderBlocks())
 watch(() => store.transformMode, (newMode) => {
   if (transformControls) transformControls.setMode(newMode)

@@ -19,6 +19,10 @@ export const useEditorStore = defineStore('editor', {
 
     // Configuración de visualización 3D
     viewMode: 'solido', // 'solido' | 'rayosX' | 'alambrico'
+    modelMode: 'edicion', // 'edicion' (bloques individuales) | 'solidoFinal' (malla combinada CSG)
+    volumenMallaCSG: 0,
+    isComputingCSG: false,
+    csgError: null,
     showDimensions: true,
     showGrid: true,
     snapToGrid: true,
