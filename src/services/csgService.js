@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { ADDITION, SUBTRACTION, Brush, Evaluator } from 'three-bvh-csg'
-import { GEOMETRY_TYPES } from './geometryCatalog'
+import { GEOMETRY_TYPES } from './geometryCatalog.js'
 
 let evaluator = null
 
@@ -68,6 +68,103 @@ export function calculateGeometryVolume(geometry) {
 }
 
 /**
+ * Aplica una micro-extensión hacia el exterior (overshoot) a geometrías sustractivas
+ * que tocan o rebasan los límites del sólido principal.
+ * Esto evita el problema de coplanaridad en three-bvh-csg (caras exactamente coincidentes),
+ * eliminando paredes fantasma (phantom walls) en cortes de esquina y asegurando
+ * que las perforaciones atraviesen limpiamente las paredes del pozo.
+ */
+export function applySubtractionOvershoot(geometry, block, pozoBox, overshootAmount = 0.03) {
+  if (!pozoBox || !geometry || !geometry.attributes.position) {
+    return geometry
+  }
+
+  const geom = geometry.clone()
+  const pos = geom.attributes.position
+  const count = pos.count
+
+  // Matriz de transformación del bloque sustractivo
+  const euler = new THREE.Euler(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0, 'XYZ')
+  const quat = new THREE.Quaternion().setFromEuler(euler)
+  const posVec = new THREE.Vector3(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
+  const matrixWorld = new THREE.Matrix4().compose(posVec, quat, new THREE.Vector3(1, 1, 1))
+  const invMatrix = matrixWorld.clone().invert()
+
+  const threshold = 0.015 // Tolerancia de contacto con la frontera del pozo (1.5 cm)
+  const vertex = new THREE.Vector3()
+
+  for (let i = 0; i < count; i++) {
+    vertex.fromBufferAttribute(pos, i)
+    // Pasar vértice a coordenadas mundiales
+    vertex.applyMatrix4(matrixWorld)
+
+    // Si el vértice toca o sobrepasa alguna de las 6 caras exteriores del pozo,
+    // se empuja hacia afuera en el espacio exterior para garantizar corte limpio
+    if (vertex.x >= pozoBox.max.x - threshold) vertex.x += overshootAmount
+    if (vertex.x <= pozoBox.min.x + threshold) vertex.x -= overshootAmount
+
+    if (vertex.y >= pozoBox.max.y - threshold) vertex.y += overshootAmount
+    if (vertex.y <= pozoBox.min.y + threshold) vertex.y -= overshootAmount
+
+    if (vertex.z >= pozoBox.max.z - threshold) vertex.z += overshootAmount
+    if (vertex.z <= pozoBox.min.z + threshold) vertex.z -= overshootAmount
+
+    // Regresar a coordenadas locales
+    vertex.applyMatrix4(invMatrix)
+    pos.setXYZ(i, vertex.x, vertex.y, vertex.z)
+  }
+
+  pos.needsUpdate = true
+  geom.computeVertexNormals()
+  return geom
+}
+
+/**
+ * Aplica una micro-penetración (overlap) de 1 mm a bloques aditivos que tocan exactamente
+ * cara con cara al pozo principal, para evitar caras coplanares internas disjuntas.
+ */
+export function applyAdditionOverlap(geometry, block, pozoBox, overlapAmount = 0.002) {
+  if (!pozoBox || !geometry || !geometry.attributes.position) {
+    return geometry
+  }
+
+  const geom = geometry.clone()
+  const pos = geom.attributes.position
+  const count = pos.count
+
+  const euler = new THREE.Euler(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0, 'XYZ')
+  const quat = new THREE.Quaternion().setFromEuler(euler)
+  const posVec = new THREE.Vector3(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
+  const matrixWorld = new THREE.Matrix4().compose(posVec, quat, new THREE.Vector3(1, 1, 1))
+  const invMatrix = matrixWorld.clone().invert()
+
+  const threshold = 0.01
+  const vertex = new THREE.Vector3()
+
+  for (let i = 0; i < count; i++) {
+    vertex.fromBufferAttribute(pos, i)
+    vertex.applyMatrix4(matrixWorld)
+
+    // Si el vértice está en la frontera de contacto con el pozo, empujar levemente hacia el interior del pozo
+    if (Math.abs(vertex.x - pozoBox.max.x) <= threshold) vertex.x -= overlapAmount
+    else if (Math.abs(vertex.x - pozoBox.min.x) <= threshold) vertex.x += overlapAmount
+
+    if (Math.abs(vertex.z - pozoBox.max.z) <= threshold) vertex.z -= overlapAmount
+    else if (Math.abs(vertex.z - pozoBox.min.z) <= threshold) vertex.z += overlapAmount
+
+    if (Math.abs(vertex.y - pozoBox.max.y) <= threshold) vertex.y -= overlapAmount
+    else if (Math.abs(vertex.y - pozoBox.min.y) <= threshold) vertex.y += overlapAmount
+
+    vertex.applyMatrix4(invMatrix)
+    pos.setXYZ(i, vertex.x, vertex.y, vertex.z)
+  }
+
+  pos.needsUpdate = true
+  geom.computeVertexNormals()
+  return geom
+}
+
+/**
  * Genera el sólido booleano resultante (CSG) a partir de la lista de bloques
  * Lógica robusta en 2 etapas:
  * 1) Fusión secuencial de todas las UNIONES (+) para formar el cuerpo completo del pozo.
@@ -111,7 +208,11 @@ export function buildCompositePozo(bloques) {
       const def = GEOMETRY_TYPES[block.tipo_figura]
       if (!def) continue
 
-      const geom = sanitizeGeometry(def.createGeometry(block))
+      // Calcular caja envolvente actual para verificar contacto
+      const currentBox = new THREE.Box3().setFromObject(compositeBrush)
+      let rawGeom = sanitizeGeometry(def.createGeometry(block))
+      let geom = applyAdditionOverlap(rawGeom, block, currentBox)
+
       const brush = new Brush(geom, baseMaterial)
       brush.position.set(block.pos_x, block.pos_y, block.pos_z)
       brush.rotation.set(block.rot_x, block.rot_y, block.rot_z)
@@ -131,7 +232,13 @@ export function buildCompositePozo(bloques) {
       const def = GEOMETRY_TYPES[block.tipo_figura]
       if (!def) continue
 
-      const geom = sanitizeGeometry(def.createGeometry(block))
+      // Obtener caja envolvente del cuerpo principal del pozo
+      const pozoBox = new THREE.Box3().setFromObject(compositeBrush)
+
+      // Geometría saneada con micro-extensión de corte para caras exteriores
+      let rawGeom = sanitizeGeometry(def.createGeometry(block))
+      let geom = applySubtractionOvershoot(rawGeom, block, pozoBox, 0.04)
+
       const brush = new Brush(geom, baseMaterial)
       brush.position.set(block.pos_x, block.pos_y, block.pos_z)
       brush.rotation.set(block.rot_x, block.rot_y, block.rot_z)

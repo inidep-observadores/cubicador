@@ -75,23 +75,31 @@
 
       <div class="h-7 w-px bg-slate-800"></div>
 
-      <div class="text-center">
-        <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-          {{ store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0 ? 'Vol. Malla Real (CSG)' : 'Volumen Analítico' }}
+      <div class="text-center min-w-[130px]">
+        <div class="flex items-center justify-center gap-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
+          <span>Volumen del Pozo</span>
+          <span v-if="store.modelMode === 'solidoFinal'" class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">CSG</span>
         </div>
         <div class="text-xl font-extrabold text-sky-400 font-mono flex items-baseline justify-center gap-1">
-          <span>{{ (store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0 ? store.volumenMallaCSG : store.volumenTotal).toFixed(2) }}</span>
+          <span>{{ store.volumenTotal.toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">m³</span>
+        </div>
+        <div v-if="store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0" class="text-[9px] text-slate-400 font-mono flex items-center justify-center gap-1">
+          <span>Malla 3D: {{ store.volumenMallaCSG.toFixed(2) }} m³</span>
+          <span v-if="Math.abs(store.volumenMallaCSG - store.volumenTotal) < 0.05" class="text-emerald-400 font-bold" title="Cálculo analítico y malla 3D coinciden exactamente">✓</span>
         </div>
       </div>
 
       <div class="h-7 w-px bg-slate-800"></div>
 
-      <div class="text-center">
+      <div class="text-center min-w-[130px]">
         <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Capacidad Captura Est.</div>
         <div class="text-xl font-extrabold text-emerald-400 font-mono flex items-baseline justify-center gap-1">
-          <span>{{ ((store.modelMode === 'solidoFinal' && store.volumenMallaCSG > 0 ? store.volumenMallaCSG : store.volumenTotal) * (store.selectedPozo?.densidad_estiba || 800) / 1000).toFixed(2) }}</span>
+          <span>{{ (store.volumenTotal * (store.selectedPozo?.densidad_estiba || 800) / 1000).toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">Ton</span>
+        </div>
+        <div class="text-[9px] text-slate-500">
+          Factor: {{ ((store.selectedPozo?.densidad_estiba || 800) / 1000).toFixed(2) }} t/m³
         </div>
       </div>
     </div>

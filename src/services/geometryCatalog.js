@@ -104,11 +104,11 @@ export const GEOMETRY_TYPES = {
       ]
 
       const indices = [
-        0, 1, 2,   0, 2, 3,
-        3, 2, 5,   3, 5, 4,
-        0, 4, 5,   0, 5, 1,
-        0, 3, 4,
-        1, 5, 2
+        0, 3, 2,   0, 2, 1, // Base inferior (normal hacia -Y)
+        3, 5, 2,   3, 4, 5, // Cara vertical (normal hacia +X)
+        0, 1, 5,   0, 5, 4, // Rampa inclinada (normal hacia el exterior)
+        0, 4, 3,            // Lateral Z- (normal hacia -Z)
+        1, 2, 5             // Lateral Z+ (normal hacia +Z)
       ]
 
       const positions = []
@@ -172,11 +172,11 @@ export const GEOMETRY_TYPES = {
       ]
 
       const indices = [
-        0, 1, 2,   0, 2, 3,
-        3, 2, 5,   3, 5, 4,
-        0, 4, 5,   0, 5, 1,
-        0, 3, 4,
-        1, 5, 2
+        0, 3, 2,   0, 2, 1, // Base inferior (normal hacia -Y)
+        3, 5, 2,   3, 4, 5, // Cara vertical (normal hacia +X)
+        0, 1, 5,   0, 5, 4, // Rampa inclinada (normal hacia el exterior)
+        0, 4, 3,            // Lateral Z- (normal hacia -Z)
+        1, 2, 5             // Lateral Z+ (normal hacia +Z)
       ]
 
       const positions = []
@@ -544,10 +544,10 @@ export const GEOMETRY_TYPES = {
       ]
 
       const indices = [
-        0, 2, 1,
-        0, 1, 3,
-        0, 3, 2,
-        1, 2, 3
+        0, 1, 2, // Base inferior (normal hacia -Y)
+        0, 3, 1, // Cara posterior Z- (normal hacia -Z)
+        0, 2, 3, // Cara lateral X- (normal hacia -X)
+        1, 3, 2  // Cara inclinada frontal (normal hacia afuera)
       ]
 
       const positions = []
