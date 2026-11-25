@@ -181,6 +181,17 @@
         <Ruler class="w-4 h-4" />
       </button>
 
+      <!-- Instalar como app (solo si el navegador lo ofrece) -->
+      <button
+        v-if="canInstall && !isInstalled"
+        @click="promptInstall()"
+        title="Instalar como aplicación: funciona sin conexión y el navegador conserva mejor los datos"
+        class="flex items-center gap-1.5 bg-sky-600/90 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+      >
+        <MonitorDown class="w-4 h-4" />
+        <span>Instalar app</span>
+      </button>
+
       <!-- Respaldo a archivo y copias automáticas -->
       <div class="relative flex items-stretch">
         <button
@@ -206,7 +217,7 @@
           class="absolute right-0 top-full mt-2 w-80 z-50 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-3 space-y-2 text-xs"
         >
           <div class="flex items-center justify-between">
-            <span class="font-bold uppercase tracking-wider text-slate-300 text-[11px]">Copias automáticas</span>
+            <span class="font-bold uppercase tracking-wider text-slate-300 text-[11px]">Respaldos y copias</span>
             <button @click="backupsOpen = false" class="text-slate-500 hover:text-white">✕</button>
           </div>
 
@@ -221,6 +232,25 @@
           <p class="text-slate-500 text-[11px]">
             Se guardan dentro de este navegador: sirven para volver atrás, pero no reemplazan un archivo exportado.
           </p>
+
+          <div class="flex gap-2">
+            <button
+              @click="store.exportDatabase()"
+              class="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg py-1.5 font-medium transition"
+            >
+              <Download class="w-3.5 h-3.5 text-emerald-400" />
+              Exportar .sqlite
+            </button>
+            <button
+              @click="fileInput?.click()"
+              class="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg py-1.5 font-medium transition"
+              title="Reemplazar la base actual por un archivo .sqlite exportado antes"
+            >
+              <Upload class="w-3.5 h-3.5 text-sky-400" />
+              Importar .sqlite
+            </button>
+            <input ref="fileInput" type="file" accept=".sqlite,.sqlite3,.db,application/x-sqlite3,application/vnd.sqlite3" class="hidden" @change="onImportFile" />
+          </div>
 
           <div v-if="store.backups.length === 0" class="text-slate-500 italic py-2">Todavía no hay copias.</div>
           <ul v-else class="max-h-64 overflow-y-auto space-y-1">
@@ -251,8 +281,10 @@
 import { ref, computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import {
-  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, Sparkles, History
+  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, Sparkles, History,
+  Download, Upload, MonitorDown
 } from 'lucide-vue-next'
+import { canInstall, isInstalled, promptInstall } from '../services/install'
 
 const store = useEditorStore()
 const backupsOpen = ref(false)
@@ -286,5 +318,15 @@ function formatSize(bytes) {
 async function restore(id) {
   backupsOpen.value = false
   await store.restoreBackup(id)
+}
+
+const fileInput = ref(null)
+
+async function onImportFile(event) {
+  const file = event.target.files?.[0]
+  event.target.value = '' // permitir volver a elegir el mismo archivo
+  if (!file) return
+  backupsOpen.value = false
+  await store.importDatabase(file)
 }
 </script>

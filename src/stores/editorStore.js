@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import {
   getDatabase, persistDatabase, setWritesEnabled, exportDatabaseFile,
-  exportDatabaseBytes, replaceDatabase
+  exportDatabaseBytes, replaceDatabase, importDatabaseFile
 } from '../services/db'
 import {
   requestPersistentStorage, acquireTabLock, ensureDailyBackup, listBackupsInfo,
@@ -189,6 +189,28 @@ export const useEditorStore = defineStore('editor', {
     async exportDatabase() {
       this.flushPendingSave()
       this.lastExportAt = await exportDatabaseFile()
+    },
+
+    /** Reemplaza la base por un archivo .sqlite exportado antes (con copia previa). */
+    async importDatabase(file) {
+      if (!file) return
+      const ok = confirm(
+        `¿Importar "${file.name}"?\n\n` +
+        'Reemplazará todos los buques, pozos y piezas actuales. ' +
+        'La base actual se guardará como copia antes de reemplazarla.'
+      )
+      if (!ok) return
+      this.isLoading = true
+      try {
+        this.flushPendingSave()
+        this.db = await importDatabaseFile(file)
+        await this.reloadFromDb()
+        await this.refreshBackupInfo()
+      } catch (err) {
+        alert(`No se pudo importar el archivo.\n\n${err.message || err}\n\nLa base actual no se modificó.`)
+      } finally {
+        this.isLoading = false
+      }
     },
 
     async restoreBackup(id) {

@@ -1,5 +1,5 @@
 import { get, set } from 'idb-keyval'
-import { migrateDatabase, setSchemaVersion, getSchemaVersion, SCHEMA_VERSION } from './migrations.js'
+import { migrateDatabase, setSchemaVersion, getSchemaVersion, validateSchema, SCHEMA_VERSION } from './migrations.js'
 import { saveBackup, markExported } from './storageSafety.js'
 
 const DB_STORAGE_KEY = 'cubicacion_pozos_sqlite_db'
@@ -26,12 +26,18 @@ async function loadSql() {
  */
 async function openAndMigrate(SQL, bytes) {
   const db = new SQL.Database(new Uint8Array(bytes))
-  const version = getSchemaVersion(db)
-  if (version < SCHEMA_VERSION) {
-    await saveBackup(bytes, `Antes de actualizar el formato (v${version} → v${SCHEMA_VERSION})`)
+  try {
+    validateSchema(db) // antes que nada: no respaldar ni migrar archivos ajenos
+    const version = getSchemaVersion(db)
+    if (version < SCHEMA_VERSION) {
+      await saveBackup(bytes, `Antes de actualizar el formato (v${version} → v${SCHEMA_VERSION})`)
+    }
+    const migrated = migrateDatabase(db)
+    return { db, migrated }
+  } catch (err) {
+    db.close()
+    throw err
   }
-  const migrated = migrateDatabase(db)
-  return { db, migrated }
 }
 
 export async function getDatabase() {

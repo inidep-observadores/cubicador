@@ -78,3 +78,22 @@ test('migración: rechaza una base de una versión más nueva', () => {
   db.run(`PRAGMA user_version = ${SCHEMA_VERSION + 1}`)
   assert.throws(() => migrateDatabase(db), /más nueva/)
 })
+
+test('validación: rechaza un archivo que no es SQLite', () => {
+  const garbage = new TextEncoder().encode('esto no es una base de datos'.repeat(40))
+  assert.throws(() => migrateDatabase(new SQL.Database(garbage)), /no es una base de datos SQLite válida/)
+})
+
+test('validación: rechaza una base SQLite de otra aplicación', () => {
+  const db = new SQL.Database()
+  db.run('CREATE TABLE clientes (id INTEGER, nombre TEXT)')
+  assert.throws(() => migrateDatabase(db), /falta la tabla "buques"/)
+})
+
+test('validación: rechaza una tabla incompleta', () => {
+  const db = new SQL.Database()
+  db.run(`CREATE TABLE buques (id INTEGER, nombre TEXT);
+    CREATE TABLE pozos (id INTEGER, buque_id INTEGER, nombre TEXT, densidad_estiba REAL);
+    CREATE TABLE bloques (id INTEGER, pozo_id INTEGER, nombre TEXT)`)
+  assert.throws(() => migrateDatabase(db), /"bloques" le faltan columnas/)
+})

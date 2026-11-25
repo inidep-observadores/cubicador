@@ -15,6 +15,43 @@ export function getSchemaVersion(db) {
   return db.exec('PRAGMA user_version')[0].values[0][0]
 }
 
+// Columnas mínimas que necesita la aplicación en cada tabla
+const COLUMNAS_REQUERIDAS = {
+  buques: ['id', 'nombre'],
+  pozos: ['id', 'buque_id', 'nombre', 'densidad_estiba'],
+  bloques: [
+    'id', 'pozo_id', 'orden', 'nombre', 'tipo_figura', 'operacion',
+    'largo', 'ancho', 'alto', 'base_a', 'base_b', 'diametro_d', 'diametro_d_menor',
+    'pos_x', 'pos_y', 'pos_z', 'rot_x', 'rot_y', 'rot_z'
+  ]
+}
+
+/**
+ * Comprueba que el archivo sea una base de esta aplicación antes de usarlo.
+ * Lanza un error con un mensaje claro si no lo es.
+ */
+export function validateSchema(db) {
+  let tablas
+  try {
+    tablas = db.exec("SELECT name FROM sqlite_master WHERE type = 'table'")
+  } catch {
+    throw new Error('El archivo no es una base de datos SQLite válida.')
+  }
+  const existentes = new Set(tablas.length ? tablas[0].values.map(r => r[0]) : [])
+
+  for (const [tabla, columnas] of Object.entries(COLUMNAS_REQUERIDAS)) {
+    if (!existentes.has(tabla)) {
+      throw new Error(`El archivo no es una base de Cubicación 3D: falta la tabla "${tabla}".`)
+    }
+    const info = db.exec(`PRAGMA table_info(${tabla})`)
+    const tiene = new Set(info.length ? info[0].values.map(r => r[1]) : [])
+    const faltan = columnas.filter(c => !tiene.has(c))
+    if (faltan.length) {
+      throw new Error(`El archivo no es una base de Cubicación 3D: a la tabla "${tabla}" le faltan columnas (${faltan.join(', ')}).`)
+    }
+  }
+}
+
 export function setSchemaVersion(db, version = SCHEMA_VERSION) {
   db.run(`PRAGMA user_version = ${Number(version)}`)
 }
@@ -23,6 +60,7 @@ export function setSchemaVersion(db, version = SCHEMA_VERSION) {
  * Lleva la base a la versión actual. Devuelve true si hubo cambios que persistir.
  */
 export function migrateDatabase(db) {
+  validateSchema(db)
   const version = getSchemaVersion(db)
   if (version > SCHEMA_VERSION) {
     throw new Error(`La base fue creada con una versión más nueva de la aplicación (esquema ${version}).`)
