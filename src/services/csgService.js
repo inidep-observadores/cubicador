@@ -82,6 +82,9 @@ function createBlockMesh(block, material) {
  * 2) Filtrado de figuras sustractivas (-) relevantes (que intersecten la envolvente del pozo).
  * 3) Sustracción secuencial (-) de cada bloque cortador.
  * 4) Generación de normales suaves y cálculo del volumen real de la malla.
+ *
+ * Si alguna operación falla, el resultado trae `error`: el volumen de la malla
+ * no es confiable y no debe informarse como volumen real.
  */
 export function buildCompositePozo(bloques) {
   if (!bloques || bloques.length === 0) {
@@ -92,9 +95,12 @@ export function buildCompositePozo(bloques) {
     const uniones = bloques.filter(b => b.operacion === 'UNION')
     const sustracciones = bloques.filter(b => b.operacion === 'SUBSTRACCION')
 
+    // Sin piezas de unión no hay cuerpo: el volumen es 0 de forma legítima
     if (uniones.length === 0) {
-      return { mesh: null, volume: 0, error: 'Se requiere al menos una figura de unión (+) como cuerpo principal.' }
+      return { mesh: null, volume: 0, error: null }
     }
+
+    const fallas = []
 
     const baseMaterial = new THREE.MeshStandardMaterial({
       color: 0x0284c7,
@@ -106,12 +112,15 @@ export function buildCompositePozo(bloques) {
     // --- FASE 1: FUSIÓN DE TODAS LAS UNIONES (+) ---
     let compositeMesh = createBlockMesh(uniones[0], baseMaterial)
     if (!compositeMesh) {
-      return { mesh: null, volume: 0, error: 'Figura principal no reconocida.' }
+      return { mesh: null, volume: 0, error: `Figura no reconocida: ${uniones[0].nombre}` }
     }
 
     for (let i = 1; i < uniones.length; i++) {
       const blockMesh = createBlockMesh(uniones[i], baseMaterial)
-      if (!blockMesh) continue
+      if (!blockMesh) {
+        fallas.push(`figura no reconocida: ${uniones[i].nombre}`)
+        continue
+      }
 
       try {
         compositeMesh = CSG.union(compositeMesh, blockMesh)
@@ -119,6 +128,7 @@ export function buildCompositePozo(bloques) {
         compositeMesh.updateMatrixWorld(true)
       } catch (errAdd) {
         console.warn(`Error al unir ${uniones[i].nombre}:`, errAdd)
+        fallas.push(`no se pudo unir ${uniones[i].nombre}`)
       }
     }
 
@@ -126,7 +136,10 @@ export function buildCompositePozo(bloques) {
     for (let j = 0; j < sustracciones.length; j++) {
       const subBlock = sustracciones[j]
       const subMesh = createBlockMesh(subBlock, baseMaterial)
-      if (!subMesh) continue
+      if (!subMesh) {
+        fallas.push(`figura no reconocida: ${subBlock.nombre}`)
+        continue
+      }
 
       // Comprobar si la figura sustractiva intersecta la envolvente del pozo actual.
       // Si flota en el aire o está completamente fuera, se omite para optimizar CPU
@@ -144,6 +157,7 @@ export function buildCompositePozo(bloques) {
         compositeMesh.updateMatrixWorld(true)
       } catch (errSub) {
         console.warn(`Error al restar ${subBlock.nombre}:`, errSub)
+        fallas.push(`no se pudo restar ${subBlock.nombre}`)
       }
     }
 
@@ -155,10 +169,19 @@ export function buildCompositePozo(bloques) {
 
     const finalVolume = calculateGeometryVolume(compositeMesh.geometry)
 
+    // Control de consistencia: el resultado nunca puede superar la suma de las uniones
+    const sumaUniones = uniones.reduce((acc, b) => {
+      const def = GEOMETRY_TYPES[b.tipo_figura]
+      return acc + (def ? def.calculateVolume(b) : 0)
+    }, 0)
+    if (!Number.isFinite(finalVolume) || finalVolume > sumaUniones * 1.001 + 1e-6) {
+      fallas.push('la malla resultante es inconsistente')
+    }
+
     return {
       mesh: compositeMesh,
       volume: finalVolume,
-      error: null
+      error: fallas.length ? `Cálculo 3D incompleto: ${fallas.join('; ')}` : null
     }
   } catch (err) {
     console.error('Error general en generación CSG:', err)
@@ -169,7 +192,7 @@ export function buildCompositePozo(bloques) {
 /**
  * Caja envolvente real de un bloque: respeta la forma de cada figura y su rotación
  */
-function getBlockBounds(block) {
+export function getBlockBounds(block) {
   const def = GEOMETRY_TYPES[block.tipo_figura]
   if (!def) return null
 

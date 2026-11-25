@@ -1,4 +1,5 @@
 import { get, set } from 'idb-keyval'
+import { migrateDatabase, setSchemaVersion } from './migrations.js'
 
 const DB_STORAGE_KEY = 'cubicacion_pozos_sqlite_db'
 let dbInstance = null
@@ -19,17 +20,19 @@ export async function getDatabase() {
   const savedDbData = await get(DB_STORAGE_KEY)
   if (savedDbData) {
     dbInstance = new SQL.Database(new Uint8Array(savedDbData))
+    if (migrateDatabase(dbInstance)) await persistDatabase()
   } else {
     dbInstance = new SQL.Database()
     initTables(dbInstance)
     seedInitialData(dbInstance)
+    setSchemaVersion(dbInstance)
     await persistDatabase()
   }
 
   return dbInstance
 }
 
-function initTables(db) {
+export function initTables(db) {
   db.run(`
     CREATE TABLE IF NOT EXISTS buques (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,7 +127,9 @@ export async function importDatabaseFile(file) {
   const buffer = await file.arrayBuffer()
   const initSqlJs = window.initSqlJs
   const SQL = await initSqlJs({ locateFile: file => `/${file}` })
-  dbInstance = new SQL.Database(new Uint8Array(buffer))
+  const imported = new SQL.Database(new Uint8Array(buffer))
+  migrateDatabase(imported) // valida la versión antes de reemplazar la base actual
+  dbInstance = imported
   await persistDatabase()
   return dbInstance
 }

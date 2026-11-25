@@ -21,8 +21,8 @@ export const useEditorStore = defineStore('editor', {
     // Configuración de visualización 3D
     viewMode: 'solido', // 'solido' | 'rayosX' | 'alambrico'
     modelMode: 'edicion', // 'edicion' (bloques individuales) | 'solidoFinal' (malla combinada CSG)
-    volumenMallaCSG: 0,
-    isComputingCSG: false,
+    // Volumen del sólido booleano. null = no hay un cálculo 3D confiable (ver csgError)
+    volumenMallaCSG: null,
     csgError: null,
     showDimensions: true,
     showGrid: true,
@@ -53,9 +53,14 @@ export const useEditorStore = defineStore('editor', {
     volumenNominal(state) {
       return calculateAnalyticalTotal(state.bloques)
     },
+    // true cuando el volumen informado sale del sólido 3D (intersecciones reales)
+    volumenEsReal(state) {
+      return state.volumenMallaCSG !== null
+    },
     volumenTotal(state) {
-      // Prioridad: volumen real calculado por CSG considerando intersecciones espaciales exactas
-      if (state.volumenMallaCSG > 0) {
+      // Prioridad: volumen real calculado por CSG (puede ser 0 de forma legítima).
+      // Si el cálculo 3D no es confiable, se informa la suma nominal y la UI lo advierte.
+      if (state.volumenMallaCSG !== null) {
         return state.volumenMallaCSG
       }
       return calculateAnalyticalTotal(state.bloques)
@@ -212,6 +217,8 @@ export const useEditorStore = defineStore('editor', {
     updateBlockProperty(blockId, property, value) {
       const b = this.bloques.find(x => x.id === blockId)
       if (!b) return
+      // Nunca guardar NaN/Infinity: dejarían la pieza con volumen inválido
+      if (typeof value === 'number' && !Number.isFinite(value)) return
       b[property] = value
       const def = GEOMETRY_TYPES[b.tipo_figura]
       if (def) {
@@ -281,25 +288,25 @@ export const useEditorStore = defineStore('editor', {
     },
 
     updateVolumenReal() {
-      if (!this.bloques || this.bloques.length === 0) {
-        this.volumenMallaCSG = 0
-        return
-      }
+      let res
       try {
-        const uniones = this.bloques.filter(b => b.operacion === 'UNION')
-        if (uniones.length === 0) {
-          this.volumenMallaCSG = 0
-          return
-        }
-        const res = buildCompositePozo(this.bloques)
-        if (res && res.volume !== undefined) {
-          this.volumenMallaCSG = res.volume
-          if (this.db && this.selectedPozoId) {
-            this.db.run("UPDATE pozos SET volumen_total = ? WHERE id = ?", [this.volumenTotal, this.selectedPozoId])
-          }
-        }
+        res = buildCompositePozo(this.bloques)
       } catch (err) {
-        console.warn('Error al computar volumen CSG con intersecciones:', err)
+        res = { volume: 0, error: err.message || String(err) }
+      }
+
+      if (res.error) {
+        // Nunca dejar el valor del cálculo anterior (podría ser de otro pozo)
+        this.volumenMallaCSG = null
+        this.csgError = res.error
+        console.warn('Volumen 3D no confiable:', res.error)
+      } else {
+        this.volumenMallaCSG = res.volume
+        this.csgError = null
+      }
+
+      if (this.db && this.selectedPozoId) {
+        this.db.run("UPDATE pozos SET volumen_total = ? WHERE id = ?", [this.volumenTotal, this.selectedPozoId])
       }
     },
 

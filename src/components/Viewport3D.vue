@@ -368,8 +368,8 @@ function renderBlocks() {
     transformControls.detach()
 
     const result = buildCompositePozo(store.bloques)
+    // El volumen lo calcula y valida el store; acá solo se dibuja la malla
     if (result.mesh && result.mesh.geometry) {
-      store.volumenMallaCSG = result.volume
       const geom = result.mesh.geometry
 
       let mat

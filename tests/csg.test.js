@@ -29,3 +29,22 @@ for (const tipo of Object.keys(GEOMETRY_TYPES)) {
     cerca(buildCompositePozo([caja, b]).volume, vol(caja) - vol(b), 1e-4, tipo)
   })
 }
+
+test('CSG: solo sustracciones da volumen 0 sin error', () => {
+  const r = buildCompositePozo([bloque(1, 'caja', 'SUBSTRACCION')])
+  assert.equal(r.volume, 0)
+  assert.equal(r.error, null)
+})
+
+test('CSG: una resta que vacía el pozo da volumen 0 real, no un error', () => {
+  const caja = bloque(1, 'caja', 'UNION', { largo: 2, ancho: 2, alto: 2 })
+  const corte = bloque(2, 'caja', 'SUBSTRACCION', { largo: 4, ancho: 4, alto: 4, pos_y: -1 })
+  const r = buildCompositePozo([caja, corte])
+  assert.equal(r.error, null)
+  assert.ok(r.volume < 1e-9, `volumen ${r.volume}`)
+})
+
+test('CSG: una figura desconocida se informa como error', () => {
+  const r = buildCompositePozo([bloque(1, 'caja', 'UNION'), { ...bloque(2, 'caja', 'UNION'), tipo_figura: 'inexistente', nombre: 'X' }])
+  assert.match(r.error, /no reconocida: X/)
+})

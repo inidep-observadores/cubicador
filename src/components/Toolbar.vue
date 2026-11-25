@@ -78,17 +78,32 @@
       <div class="text-center min-w-[130px]">
         <div class="flex items-center justify-center gap-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
           <span>Volumen del Pozo</span>
-          <span class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30" title="Volumen espacial real considerando intersecciones y recortes 3D">Real 3D</span>
+          <span
+            v-if="store.volumenEsReal"
+            class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30"
+            title="Volumen espacial real considerando intersecciones y recortes 3D"
+          >Real 3D</span>
+          <span
+            v-else
+            class="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40"
+            :title="store.csgError + '. Se muestra la suma nominal de las piezas, sin considerar solapamientos ni recortes.'"
+          >⚠ Nominal</span>
         </div>
-        <div class="text-xl font-extrabold text-sky-400 font-mono flex items-baseline justify-center gap-1">
+        <div
+          class="text-xl font-extrabold font-mono flex items-baseline justify-center gap-1"
+          :class="store.volumenEsReal ? 'text-sky-400' : 'text-amber-300'"
+        >
           <span>{{ store.volumenTotal.toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">m³</span>
         </div>
-        <div v-if="Math.abs(store.volumenNominal - store.volumenTotal) > 0.05" class="text-[9px] text-amber-400/90 font-mono flex items-center justify-center gap-1" :title="'Suma nominal de piezas: ' + store.volumenNominal.toFixed(2) + ' m³ (sin considerar intersección espacial)'">
+        <div v-if="!store.volumenEsReal" class="text-[9px] text-amber-400 font-mono max-w-[180px] truncate" :title="store.csgError">
+          Falló el cálculo 3D: revisar piezas
+        </div>
+        <div v-else-if="Math.abs(store.volumenNominal - store.volumenTotal) > 0.05" class="text-[9px] text-amber-400/90 font-mono flex items-center justify-center gap-1" :title="'Suma nominal de piezas: ' + store.volumenNominal.toFixed(2) + ' m³ (sin considerar intersección espacial)'">
           <span>Nominal: {{ store.volumenNominal.toFixed(2) }} m³</span>
         </div>
         <div v-else class="text-[9px] text-emerald-400/80 font-mono flex items-center justify-center gap-1">
-          <span>✓ Intersección exacta</span>
+          <span>✓ Sin solapamientos</span>
         </div>
       </div>
 
@@ -97,7 +112,7 @@
       <div class="text-center min-w-[130px]">
         <div class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Capacidad Captura Est.</div>
         <div class="text-xl font-extrabold text-emerald-400 font-mono flex items-baseline justify-center gap-1">
-          <span>{{ (store.volumenTotal * (store.selectedPozo?.densidad_estiba || 800) / 1000).toFixed(2) }}</span>
+          <span>{{ store.capturaEstimadaToneladas.toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">Ton</span>
         </div>
         <div class="text-[9px] text-slate-500">

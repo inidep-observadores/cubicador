@@ -93,7 +93,8 @@
                 :min="param.min || 0.05" 
                 :step="param.step || 0.1"
                 :value="currentBlock[param.key]" 
-                @input="updateProp(param.key, Number($event.target.value))"
+                @input="onNumberInput(param.key, $event, param.min ?? 0.05)"
+                @change="restoreIfInvalid(param.key, $event, param.min ?? 0.05)"
                 class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right text-sm text-sky-300 font-mono focus:outline-none focus:border-sky-500"
               />
               <span class="text-xs text-slate-500 font-mono w-4">m</span>
@@ -117,7 +118,8 @@
               type="number" 
               step="0.01" 
               :value="currentBlock.pos_x" 
-              @input="updateProp('pos_x', Number($event.target.value))"
+              @input="onNumberInput('pos_x', $event)"
+              @change="restoreIfInvalid('pos_x', $event)"
               class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
@@ -127,7 +129,8 @@
               type="number" 
               step="0.01" 
               :value="currentBlock.pos_y" 
-              @input="updateProp('pos_y', Number($event.target.value))"
+              @input="onNumberInput('pos_y', $event)"
+              @change="restoreIfInvalid('pos_y', $event)"
               class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
@@ -137,7 +140,8 @@
               type="number" 
               step="0.01" 
               :value="currentBlock.pos_z" 
-              @input="updateProp('pos_z', Number($event.target.value))"
+              @input="onNumberInput('pos_z', $event)"
+              @change="restoreIfInvalid('pos_z', $event)"
               class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
@@ -189,7 +193,8 @@
                 type="number" 
                 step="15" 
                 :value="getAngleDegrees('rot_x')" 
-                @input="setAngleDegrees('rot_x', Number($event.target.value))"
+                @input="onAngleInput('rot_x', $event)"
+                @change="restoreAngleIfInvalid('rot_x', $event)"
                 class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
               />
               <span class="text-[10px] text-slate-500">°</span>
@@ -202,7 +207,8 @@
                 type="number" 
                 step="15" 
                 :value="getAngleDegrees('rot_y')" 
-                @input="setAngleDegrees('rot_y', Number($event.target.value))"
+                @input="onAngleInput('rot_y', $event)"
+                @change="restoreAngleIfInvalid('rot_y', $event)"
                 class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
               />
               <span class="text-[10px] text-slate-500">°</span>
@@ -215,7 +221,8 @@
                 type="number" 
                 step="15" 
                 :value="getAngleDegrees('rot_z')" 
-                @input="setAngleDegrees('rot_z', Number($event.target.value))"
+                @input="onAngleInput('rot_z', $event)"
+                @change="restoreAngleIfInvalid('rot_z', $event)"
                 class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
               />
               <span class="text-[10px] text-slate-500">°</span>
@@ -318,6 +325,48 @@ function updateProp(prop, val) {
   if (currentBlock.value) {
     store.updateBlockProperty(currentBlock.value.id, prop, val)
   }
+}
+
+// --- Validación de campos numéricos ---
+// Mientras se escribe solo se aplican valores válidos; un valor vacío, no numérico
+// o menor al mínimo marca el campo en rojo y no toca la pieza. Al salir del campo
+// se restaura el último valor válido.
+const INVALID_CLASS = '!border-rose-500'
+
+function readNumber(event, min) {
+  const v = event.target.valueAsNumber
+  if (!Number.isFinite(v)) return null
+  if (min !== undefined && v < min) return null
+  return v
+}
+
+function markField(event, valid) {
+  event.target.classList.toggle(INVALID_CLASS, !valid)
+  event.target.title = valid ? '' : 'Valor inválido: no se aplicó'
+}
+
+function onNumberInput(prop, event, min) {
+  const v = readNumber(event, min)
+  markField(event, v !== null)
+  if (v !== null) updateProp(prop, v)
+}
+
+function restoreIfInvalid(prop, event, min) {
+  if (readNumber(event, min) === null && currentBlock.value) {
+    event.target.value = currentBlock.value[prop]
+  }
+  markField(event, true)
+}
+
+function onAngleInput(prop, event) {
+  const v = readNumber(event)
+  markField(event, v !== null)
+  if (v !== null) setAngleDegrees(prop, v)
+}
+
+function restoreAngleIfInvalid(prop, event) {
+  if (readNumber(event) === null) event.target.value = getAngleDegrees(prop)
+  markField(event, true)
 }
 
 function getAngleDegrees(prop) {
