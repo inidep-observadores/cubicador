@@ -166,9 +166,11 @@ export function applyAdditionOverlap(geometry, block, pozoBox, overlapAmount = 0
 
 /**
  * Genera el sólido booleano resultante (CSG) a partir de la lista de bloques
- * Lógica robusta en 2 etapas:
+ * Arquitectura robusta en 2 etapas fundamentada en el álgebra booleana A \ (B ∪ C):
  * 1) Fusión secuencial de todas las UNIONES (+) para formar el cuerpo completo del pozo.
- * 2) Aplicación secuencial de todas las SUSTRACCIONES (-) como sacabocados/cortes sobre el cuerpo unificado.
+ * 2) Fusión de todos los cortadores SUSTRACCIONES (-) en un único sólido de corte compuesto.
+ * 3) Aplicación de una única sustracción global final sobre el cuerpo unificado,
+ *    evitando la degradación acumulativa de mallas intermedias y garantizando cortes limpios.
  */
 export function buildCompositePozo(bloques) {
   if (!bloques || bloques.length === 0) {
@@ -199,8 +201,8 @@ export function buildCompositePozo(bloques) {
 
     const firstGeom = sanitizeGeometry(firstDef.createGeometry(firstBlock))
     let compositeBrush = new Brush(firstGeom, baseMaterial)
-    compositeBrush.position.set(firstBlock.pos_x, firstBlock.pos_y, firstBlock.pos_z)
-    compositeBrush.rotation.set(firstBlock.rot_x, firstBlock.rot_y, firstBlock.rot_z)
+    compositeBrush.position.set(firstBlock.pos_x || 0, firstBlock.pos_y || 0, firstBlock.pos_z || 0)
+    compositeBrush.rotation.set(firstBlock.rot_x || 0, firstBlock.rot_y || 0, firstBlock.rot_z || 0)
     compositeBrush.updateMatrixWorld()
 
     for (let i = 1; i < uniones.length; i++) {
@@ -208,14 +210,13 @@ export function buildCompositePozo(bloques) {
       const def = GEOMETRY_TYPES[block.tipo_figura]
       if (!def) continue
 
-      // Calcular caja envolvente actual para verificar contacto
       const currentBox = new THREE.Box3().setFromObject(compositeBrush)
       let rawGeom = sanitizeGeometry(def.createGeometry(block))
       let geom = applyAdditionOverlap(rawGeom, block, currentBox)
 
       const brush = new Brush(geom, baseMaterial)
-      brush.position.set(block.pos_x, block.pos_y, block.pos_z)
-      brush.rotation.set(block.rot_x, block.rot_y, block.rot_z)
+      brush.position.set(block.pos_x || 0, block.pos_y || 0, block.pos_z || 0)
+      brush.rotation.set(block.rot_x || 0, block.rot_y || 0, block.rot_z || 0)
       brush.updateMatrixWorld()
 
       try {
@@ -226,29 +227,41 @@ export function buildCompositePozo(bloques) {
       }
     }
 
-    // --- FASE 2: APLICACIÓN DE TODAS LAS SUSTRACCIONES (-) ---
-    for (let j = 0; j < sustracciones.length; j++) {
-      const block = sustracciones[j]
-      const def = GEOMETRY_TYPES[block.tipo_figura]
-      if (!def) continue
+    // --- FASE 2: UNIFICACIÓN DE CORTADORES SUSTRACTIVOS (-) ---
+    if (sustracciones.length > 0) {
+      let combinedCutter = null
 
-      // Obtener caja envolvente del cuerpo principal del pozo
-      const pozoBox = new THREE.Box3().setFromObject(compositeBrush)
+      for (let j = 0; j < sustracciones.length; j++) {
+        const subBlock = sustracciones[j]
+        const subDef = GEOMETRY_TYPES[subBlock.tipo_figura]
+        if (!subDef) continue
 
-      // Geometría saneada con micro-extensión de corte para caras exteriores
-      let rawGeom = sanitizeGeometry(def.createGeometry(block))
-      let geom = applySubtractionOvershoot(rawGeom, block, pozoBox, 0.04)
+        const subGeom = sanitizeGeometry(subDef.createGeometry(subBlock))
+        const subBrush = new Brush(subGeom, baseMaterial)
+        subBrush.position.set(subBlock.pos_x || 0, subBlock.pos_y || 0, subBlock.pos_z || 0)
+        subBrush.rotation.set(subBlock.rot_x || 0, subBlock.rot_y || 0, subBlock.rot_z || 0)
+        subBrush.updateMatrixWorld()
 
-      const brush = new Brush(geom, baseMaterial)
-      brush.position.set(block.pos_x, block.pos_y, block.pos_z)
-      brush.rotation.set(block.rot_x, block.rot_y, block.rot_z)
-      brush.updateMatrixWorld()
+        if (!combinedCutter) {
+          combinedCutter = subBrush
+        } else {
+          try {
+            combinedCutter = evalInstance.evaluate(combinedCutter, subBrush, ADDITION)
+            combinedCutter.updateMatrixWorld()
+          } catch (errUnionSub) {
+            console.warn(`Error al combinar cortador ${subBlock.nombre}:`, errUnionSub)
+          }
+        }
+      }
 
-      try {
-        compositeBrush = evalInstance.evaluate(compositeBrush, brush, SUBTRACTION)
-        compositeBrush.updateMatrixWorld()
-      } catch (errSub) {
-        console.warn(`Error al restar ${block.nombre}:`, errSub)
+      // --- FASE 3: CORTE BOOLEANO GLOBAL ÚNICO: A \ (B ∪ C) ---
+      if (combinedCutter) {
+        try {
+          compositeBrush = evalInstance.evaluate(compositeBrush, combinedCutter, SUBTRACTION)
+          compositeBrush.updateMatrixWorld()
+        } catch (errFinalSub) {
+          console.warn('Error en la sustracción combinada:', errFinalSub)
+        }
       }
     }
 
