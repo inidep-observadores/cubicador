@@ -1,0 +1,28 @@
+{
+  "name": "cubicacion-pozos-3d",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "idb-keyval": "^6.2.1",
+    "lucide-vue-next": "^0.475.0",
+    "pinia": "^3.0.1",
+    "sql.js": "^1.12.0",
+    "three": "^0.174.0",
+    "three-bvh-csg": "^0.0.16",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "vite": "^6.2.0",
+    "vite-plugin-pwa": "^0.21.1"
+  }
+}
