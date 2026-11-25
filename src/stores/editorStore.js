@@ -8,7 +8,7 @@ import {
   getBackupData, getLastExport
 } from '../services/storageSafety'
 import { GEOMETRY_TYPES, calculateAnalyticalTotal } from '../services/geometryCatalog'
-import { buildCompositePozo } from '../services/csgService'
+import { computeComposite, compositeKey } from '../services/csgClient'
 
 const HISTORY_LIMIT = 50
 // Las ediciones continuas se agrupan en un solo paso al quedar quietas este tiempo
@@ -42,6 +42,7 @@ export const useEditorStore = defineStore('editor', {
     // Volumen del sólido booleano. null = no hay un cálculo 3D confiable (ver csgError)
     volumenMallaCSG: null,
     csgError: null,
+    csgPending: false, // hay un cálculo 3D en curso
     showDimensions: true,
     showGrid: true,
     snapToGrid: true,
@@ -323,6 +324,9 @@ export const useEditorStore = defineStore('editor', {
       this.bloques = list
       // Al cambiar de pozo, la selección anterior pertenece a otro pozo
       this.ensureValidSelection()
+      // El volumen del pozo anterior no vale para este: queda "calculando"
+      this.volumenMallaCSG = null
+      this.csgError = null
       this.updateVolumenReal()
     },
 
@@ -442,13 +446,25 @@ export const useEditorStore = defineStore('editor', {
       }
     },
 
-    updateVolumenReal() {
+    /**
+     * Pide el volumen del sólido 3D. El cálculo corre en segundo plano; mientras
+     * tanto `csgPending` es true. Si llega un pedido más nuevo (otra edición u
+     * otro pozo), el resultado viejo se descarta.
+     */
+    async updateVolumenReal() {
+      const pozoId = this.selectedPozoId
+      const key = compositeKey(this.bloques)
+      this._csgKey = key
+      this.csgPending = true
+
       let res
       try {
-        res = buildCompositePozo(this.bloques)
+        res = await computeComposite(this.bloques)
       } catch (err) {
         res = { volume: 0, error: err.message || String(err) }
       }
+      if (res.superseded || this._csgKey !== key || this.selectedPozoId !== pozoId) return
+      this.csgPending = false
 
       if (res.error) {
         // Nunca dejar el valor del cálculo anterior (podría ser de otro pozo)
@@ -460,8 +476,8 @@ export const useEditorStore = defineStore('editor', {
         this.csgError = null
       }
 
-      if (this.db && this.selectedPozoId) {
-        this.db.run("UPDATE pozos SET volumen_total = ? WHERE id = ?", [this.volumenTotal, this.selectedPozoId])
+      if (this.db && pozoId) {
+        this.db.run("UPDATE pozos SET volumen_total = ? WHERE id = ?", [this.volumenTotal, pozoId])
       }
     },
 
@@ -474,6 +490,9 @@ export const useEditorStore = defineStore('editor', {
 
     async saveBloquesToDb() {
       if (!this.db || !this.selectedPozoId) return
+      // Todo cambio de piezas pasa por acá (agregar, borrar, duplicar, cambiar rol…):
+      // recalcular el volumen real. Si las piezas no cambiaron, sale de la caché.
+      this.updateVolumenReal()
       try {
         // Eliminar y reinsertar bloques del pozo actual
         this.db.run("DELETE FROM bloques WHERE pozo_id = ?", [this.selectedPozoId])

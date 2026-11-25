@@ -48,3 +48,31 @@ test('CSG: una figura desconocida se informa como error', () => {
   const r = buildCompositePozo([bloque(1, 'caja', 'UNION'), { ...bloque(2, 'caja', 'UNION'), tipo_figura: 'inexistente', nombre: 'X' }])
   assert.match(r.error, /no reconocida: X/)
 })
+
+test('cálculo en segundo plano: la geometría sale en coordenadas del mundo', async () => {
+  const { computeCompositeData } = await import('../src/services/csgCompute.js')
+  const { getBlockBounds } = await import('../src/services/csgService.js')
+  const caja = bloque(1, 'caja', 'UNION', { pos_x: 3, pos_y: 1, pos_z: -2, rot_y: Math.PI / 6 })
+  const data = computeCompositeData([caja])
+  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity]
+  for (let i = 0; i < data.positions.length; i++) {
+    min[i % 3] = Math.min(min[i % 3], data.positions[i])
+    max[i % 3] = Math.max(max[i % 3], data.positions[i])
+  }
+  const esperado = getBlockBounds(caja)
+  ;['x', 'y', 'z'].forEach((eje, k) => {
+    assert.ok(Math.abs(min[k] - esperado.min[eje]) < 1e-4 && Math.abs(max[k] - esperado.max[eje]) < 1e-4, `eje ${eje}`)
+  })
+  cerca(data.volume, vol(caja), 1e-4, 'volumen')
+})
+
+test('cliente de cálculo: piezas iguales comparten el mismo resultado', async () => {
+  const { computeComposite } = await import('../src/services/csgClient.js')
+  const piezas = [bloque(1, 'caja', 'UNION'), bloque(2, 'cilindro', 'SUBSTRACCION')]
+  const a = computeComposite(piezas)
+  const b = computeComposite(piezas.map(p => ({ ...p, nombre: 'otro nombre' }))) // el nombre no cambia la forma
+  assert.equal(a, b)
+  const r = await a
+  cerca(r.volume, vol(piezas[0]) - vol(piezas[1]), 1e-4, 'volumen')
+  assert.ok(r.geometry, 'devuelve la geometría para el visor')
+})

@@ -79,10 +79,15 @@
         <div class="flex items-center justify-center gap-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
           <span>Volumen del Pozo</span>
           <span
-            v-if="store.volumenEsReal"
+            v-if="volumeState === 'real'"
             class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30"
             title="Volumen espacial real considerando intersecciones y recortes 3D"
           >Real 3D</span>
+          <span
+            v-else-if="volumeState === 'calculando'"
+            class="text-[9px] px-1 py-0.2 rounded bg-slate-700/60 text-slate-300 font-semibold border border-slate-600 animate-pulse"
+            title="Calculando el volumen real 3D en segundo plano"
+          >Calculando…</span>
           <span
             v-else
             class="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40"
@@ -90,13 +95,20 @@
           >⚠ Nominal</span>
         </div>
         <div
-          class="text-xl font-extrabold font-mono flex items-baseline justify-center gap-1"
-          :class="store.volumenEsReal ? 'text-sky-400' : 'text-amber-300'"
+          class="text-xl font-extrabold font-mono flex items-baseline justify-center gap-1 transition-opacity"
+          :class="[
+            volumeState === 'real' ? 'text-sky-400' : volumeState === 'calculando' ? 'text-slate-400' : 'text-amber-300',
+            store.csgPending ? 'opacity-60' : ''
+          ]"
+          :title="store.csgPending ? 'Actualizando el volumen 3D…' : ''"
         >
           <span>{{ store.volumenTotal.toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">m³</span>
         </div>
-        <div v-if="!store.volumenEsReal" class="text-[9px] text-amber-400 font-mono max-w-[180px] truncate" :title="store.csgError">
+        <div v-if="volumeState === 'calculando'" class="text-[9px] text-slate-400 font-mono">
+          Suma nominal, calculando 3D…
+        </div>
+        <div v-else-if="volumeState === 'error'" class="text-[9px] text-amber-400 font-mono max-w-[180px] truncate" :title="store.csgError">
           Falló el cálculo 3D: revisar piezas
         </div>
         <div v-else-if="Math.abs(store.volumenNominal - store.volumenTotal) > 0.05" class="text-[9px] text-amber-400/90 font-mono flex items-center justify-center gap-1" :title="'Suma nominal de piezas: ' + store.volumenNominal.toFixed(2) + ' m³ (sin considerar intersección espacial)'">
@@ -288,6 +300,13 @@ import { canInstall, isInstalled, promptInstall } from '../services/install'
 
 const store = useEditorStore()
 const backupsOpen = ref(false)
+
+// 'real': volumen 3D confiable · 'calculando': primer cálculo en curso · 'error': falló el 3D
+const volumeState = computed(() => {
+  if (store.volumenEsReal) return 'real'
+  if (store.csgError) return 'error'
+  return 'calculando'
+})
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const EXPORT_REMINDER_DAYS = 7

@@ -134,36 +134,219 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
 import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
-import { buildCompositePozo, snapBlockToBounds } from '../services/csgService'
+import { snapBlockToBounds } from '../services/csgService'
+import { computeComposite } from '../services/csgClient'
 import { Compass, Move3d, Magnet, RotateCw } from 'lucide-vue-next'
 
 const store = useEditorStore()
 const containerRef = ref(null)
 const canvasRef = ref(null)
 
-let scene, camera, renderer, orbitControls, transformControls
-let blockMeshGroup = new THREE.Group()
-let csgMeshGroup = new THREE.Group()
-let edgesGroup = new THREE.Group()
-let dimensionsGroup = new THREE.Group()
-let raycaster = new THREE.Raycaster()
-let mouse = new THREE.Vector2()
-let animationFrameId = null
+let scene, camera, renderer, orbitControls, transformControls, resizeObserver
+const blockMeshGroup = new THREE.Group()
+const csgMeshGroup = new THREE.Group()
+const edgesGroup = new THREE.Group()
+const dimensionsGroup = new THREE.Group()
+const raycaster = new THREE.Raycaster()
+const mouse = new THREE.Vector2()
+
+let isDraggingGizmo = false
+let csgRenderToken = 0
+// Pieza seleccionada en la escena, para actualizarla en el arrastre sin reconstruir todo
+let selectedParts = null // { mesh, edges, box, boxHelper }
 
 onMounted(() => {
   initThree()
   renderBlocks()
-  window.addEventListener('resize', onResize)
   window.addEventListener('keydown', onKeyDown)
 })
 
 onBeforeUnmount(() => {
-  if (animationFrameId) cancelAnimationFrame(animationFrameId)
-  window.removeEventListener('resize', onResize)
   window.removeEventListener('keydown', onKeyDown)
-  if (renderer) renderer.dispose()
+  resizeObserver?.disconnect()
+  canvasRef.value?.removeEventListener('pointerdown', onPointerDown)
+  clearScene()
+  disposeCaches()
+  transformControls?.dispose()
+  orbitControls?.dispose()
+  renderer?.dispose()
 })
 
+// ---------------------------------------------------------------------------
+// Dibujo bajo demanda: solo se renderiza cuando algo cambia (cámara, piezas,
+// gizmo). Antes se dibujaba 60 veces por segundo aunque la escena estuviera quieta.
+// ---------------------------------------------------------------------------
+let renderRequested = false
+
+function requestRender() {
+  if (renderRequested || !renderer) return
+  renderRequested = true
+  requestAnimationFrame(renderFrame)
+}
+
+function renderFrame() {
+  renderRequested = false
+  // Con amortiguación, la cámara sigue moviéndose unos cuadros después de soltar
+  const cameraMoved = orbitControls.update()
+  renderer.render(scene, camera)
+  if (cameraMoved) requestRender()
+}
+
+// ---------------------------------------------------------------------------
+// Materiales compartidos: uno por combinación de estilo, reutilizados entre
+// redibujos (antes se creaba uno nuevo por pieza en cada cambio y nunca se liberaba).
+// ---------------------------------------------------------------------------
+const materialCache = new Map()
+
+function sharedMaterial(key, create) {
+  let mat = materialCache.get(key)
+  if (!mat) {
+    mat = create()
+    materialCache.set(key, mat)
+  }
+  return mat
+}
+
+function blockMaterial(viewMode, isSelected, isSubtract) {
+  return sharedMaterial(`bloque|${viewMode}|${isSelected}|${isSubtract}`, () => {
+    if (viewMode === 'alambrico') {
+      return new THREE.MeshBasicMaterial({
+        color: isSubtract ? 0xf43f5e : (isSelected ? 0x38bdf8 : 0x0284c7),
+        wireframe: true
+      })
+    }
+    if (viewMode === 'rayosX') {
+      return new THREE.MeshStandardMaterial({
+        color: isSubtract ? 0xf43f5e : (isSelected ? 0x38bdf8 : 0x0ea5e9),
+        transparent: true,
+        opacity: isSubtract ? 0.35 : 0.3,
+        roughness: 0.2,
+        metalness: 0.1,
+        depthWrite: false
+      })
+    }
+    return new THREE.MeshStandardMaterial({
+      color: isSubtract ? 0xf43f5e : (isSelected ? 0x38bdf8 : 0x0284c7),
+      transparent: isSubtract,
+      opacity: isSubtract ? 0.55 : 0.95,
+      roughness: 0.35,
+      metalness: 0.15
+    })
+  })
+}
+
+function blockEdgesMaterial(isSelected, isSubtract) {
+  return sharedMaterial(`aristas|${isSelected}|${isSubtract}`, () => new THREE.LineBasicMaterial({
+    color: isSelected ? 0xffffff : (isSubtract ? 0xff8888 : 0x38bdf8),
+    transparent: true,
+    opacity: isSelected ? 0.95 : 0.4
+  }))
+}
+
+function compositeMaterial(viewMode) {
+  return sharedMaterial(`solido|${viewMode}`, () => {
+    if (viewMode === 'alambrico') return new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true })
+    if (viewMode === 'rayosX') {
+      return new THREE.MeshStandardMaterial({
+        color: 0x0284c7, transparent: true, opacity: 0.35, roughness: 0.25, metalness: 0.15,
+        side: THREE.DoubleSide, depthWrite: false
+      })
+    }
+    return new THREE.MeshStandardMaterial({ color: 0x0284c7, roughness: 0.35, metalness: 0.2, side: THREE.DoubleSide })
+  })
+}
+
+function compositeEdgesMaterial() {
+  return sharedMaterial('aristas|solido', () =>
+    new THREE.LineBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.8 })
+  )
+}
+
+const DIMENSIONS_COLOR = new THREE.Color(0xfbbf24)
+
+function makeBoxHelper(box) {
+  const helper = new THREE.Box3Helper(box, DIMENSIONS_COLOR)
+  helper.material.opacity = 0.5
+  helper.material.transparent = true
+  helper.userData.ownsResources = true // geometría y material propios
+  return helper
+}
+
+// ---------------------------------------------------------------------------
+// Geometrías en caché por forma (tipo + medidas): mover o rotar una pieza ya no
+// regenera su malla; solo se regenera al cambiar sus medidas.
+// ---------------------------------------------------------------------------
+const geometryCache = new Map() // clave → { geometry, edges }
+const compositeEdgesCache = new WeakMap() // geometría del sólido → aristas
+
+function blockGeometryKey(b) {
+  const def = GEOMETRY_TYPES[b.tipo_figura]
+  return b.tipo_figura + '|' + def.params.map(p => b[p.key]).join('|')
+}
+
+function blockGeometry(b, usedKeys) {
+  const key = blockGeometryKey(b)
+  usedKeys.add(key)
+  let entry = geometryCache.get(key)
+  if (!entry) {
+    const geometry = GEOMETRY_TYPES[b.tipo_figura].createGeometry(b)
+    entry = { geometry, edges: new THREE.EdgesGeometry(geometry, 25) }
+    geometryCache.set(key, entry)
+  }
+  return entry
+}
+
+function pruneGeometryCache(usedKeys) {
+  for (const [key, entry] of geometryCache) {
+    if (usedKeys.has(key)) continue
+    entry.geometry.dispose()
+    entry.edges.dispose()
+    geometryCache.delete(key)
+  }
+}
+
+function compositeEdges(geometry) {
+  let edges = compositeEdgesCache.get(geometry)
+  if (!edges) {
+    edges = new THREE.EdgesGeometry(geometry, 20)
+    compositeEdgesCache.set(geometry, edges)
+  }
+  return edges
+}
+
+function disposeCaches() {
+  for (const entry of geometryCache.values()) {
+    entry.geometry.dispose()
+    entry.edges.dispose()
+  }
+  geometryCache.clear()
+  for (const mat of materialCache.values()) mat.dispose()
+  materialCache.clear()
+}
+
+/** Quita los objetos de un grupo. Solo libera lo que no pertenece a una caché. */
+function clearGroup(group) {
+  while (group.children.length > 0) {
+    const obj = group.children[0]
+    group.remove(obj)
+    if (obj.userData.ownsResources) {
+      obj.geometry?.dispose()
+      obj.material?.dispose()
+    }
+  }
+}
+
+function clearScene() {
+  clearGroup(blockMeshGroup)
+  clearGroup(csgMeshGroup)
+  clearGroup(edgesGroup)
+  clearGroup(dimensionsGroup)
+  selectedParts = null
+}
+
+// ---------------------------------------------------------------------------
+// Teclado
+// ---------------------------------------------------------------------------
 function isEditable(el) {
   return el && (
     el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable
@@ -206,6 +389,9 @@ function onKeyDown(e) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Inicialización
+// ---------------------------------------------------------------------------
 function initThree() {
   const container = containerRef.value
   const canvas = canvasRef.value
@@ -268,6 +454,7 @@ function initThree() {
   orbitControls.dampingFactor = 0.05
   orbitControls.target.set(0, 1.5, 0)
   orbitControls.maxPolarAngle = Math.PI / 2 + 0.1
+  orbitControls.addEventListener('change', requestRender)
 
   // 7. Gizmo de Transformación
   transformControls = new TransformControls(camera, renderer.domElement)
@@ -275,8 +462,6 @@ function initThree() {
   transformControls.setMode(store.transformMode)
   transformControls.rotationSnap = THREE.MathUtils.degToRad(15) // Snap cada 15° al rotar
   scene.add(transformControls.getHelper())
-
-  let isDraggingGizmo = false
 
   transformControls.addEventListener('dragging-changed', (event) => {
     isDraggingGizmo = Boolean(event.value)
@@ -292,10 +477,12 @@ function initThree() {
       store.updateVolumenReal()
       store.saveBloquesToDb()
       store.pushHistoryState()
+      renderBlocks() // estado final, ya fuera del arrastre
     }
   })
 
   transformControls.addEventListener('change', () => {
+    requestRender()
     // SÓLO aplicar snap e interactuar si el usuario está arrastrando el gizmo en pantalla
     // Esto evita que al tipear valores manuales en el panel sean pisados por el redondeo del gizmo
     if (isDraggingGizmo && transformControls.object && store.selectedBlock) {
@@ -309,7 +496,7 @@ function initThree() {
       store.updateBlockProperty(store.selectedBlock.id, 'pos_x', obj.position.x)
       store.updateBlockProperty(store.selectedBlock.id, 'pos_y', obj.position.y)
       store.updateBlockProperty(store.selectedBlock.id, 'pos_z', obj.position.z)
-      
+
       if (store.transformMode === 'rotate') {
         store.updateBlockProperty(store.selectedBlock.id, 'rot_x', obj.rotation.x)
         store.updateBlockProperty(store.selectedBlock.id, 'rot_y', obj.rotation.y)
@@ -319,24 +506,23 @@ function initThree() {
   })
 
   canvas.addEventListener('pointerdown', onPointerDown)
-  animate()
-}
 
-function animate() {
-  animationFrameId = requestAnimationFrame(animate)
-  if (orbitControls) orbitControls.update()
-  if (renderer && scene && camera) {
-    renderer.render(scene, camera)
-  }
+  // Se ajusta a cualquier cambio de tamaño del contenedor, no solo de la ventana
+  resizeObserver = new ResizeObserver(onResize)
+  resizeObserver.observe(container)
+
+  requestRender()
 }
 
 function onResize() {
   if (!containerRef.value || !renderer || !camera) return
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight
+  if (!width || !height) return
   camera.aspect = width / height
   camera.updateProjectionMatrix()
   renderer.setSize(width, height)
+  requestRender()
 }
 
 function onPointerDown(event) {
@@ -354,162 +540,100 @@ function onPointerDown(event) {
   const intersects = raycaster.intersectObjects(blockMeshGroup.children, false)
 
   if (intersects.length > 0) {
-    const clickedMesh = intersects[0].object
-    const blockId = clickedMesh.userData.blockId
+    const blockId = intersects[0].object.userData.blockId
     if (blockId) {
       store.selectedBlockId = blockId
     }
   }
 }
 
+// ---------------------------------------------------------------------------
+// Armado de la escena
+// ---------------------------------------------------------------------------
 function renderBlocks() {
-  // Limpiar grupos anteriores
-  while (blockMeshGroup.children.length > 0) {
-    const obj = blockMeshGroup.children[0]
-    blockMeshGroup.remove(obj)
-    if (obj.geometry) obj.geometry.dispose()
-  }
-  while (csgMeshGroup.children.length > 0) {
-    const obj = csgMeshGroup.children[0]
-    csgMeshGroup.remove(obj)
-    if (obj.geometry) obj.geometry.dispose()
-  }
-  while (edgesGroup.children.length > 0) {
-    const obj = edgesGroup.children[0]
-    edgesGroup.remove(obj)
-    if (obj.geometry) obj.geometry.dispose()
-  }
-  while (dimensionsGroup.children.length > 0) {
-    const obj = dimensionsGroup.children[0]
-    dimensionsGroup.remove(obj)
-    if (obj.geometry) obj.geometry.dispose()
-  }
+  if (!scene) return
 
-  // --- MODO SÓLIDO FINAL (CSG BOOLEANO) ---
   if (store.modelMode === 'solidoFinal') {
     transformControls.detach()
+    // La escena anterior queda a la vista hasta que llega el sólido nuevo
+    renderComposite()
+  } else {
+    csgRenderToken++ // descarta un sólido que todavía se estuviera calculando
+    clearScene()
+    renderEditMode()
+  }
+  requestRender()
+}
 
-    const result = buildCompositePozo(store.bloques)
-    // El volumen lo calcula y valida el store; acá solo se dibuja la malla
-    if (result.mesh && result.mesh.geometry) {
-      const geom = result.mesh.geometry
-
-      let mat
-      if (store.viewMode === 'alambrico') {
-        mat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, wireframe: true })
-      } else if (store.viewMode === 'rayosX') {
-        mat = new THREE.MeshStandardMaterial({
-          color: 0x0284c7,
-          transparent: true,
-          opacity: 0.35,
-          roughness: 0.25,
-          metalness: 0.15,
-          side: THREE.DoubleSide,
-          depthWrite: false
-        })
-      } else {
-        mat = new THREE.MeshStandardMaterial({
-          color: 0x0284c7,
-          roughness: 0.35,
-          metalness: 0.2,
-          side: THREE.DoubleSide
-        })
-      }
-
-      result.mesh.material = mat
-      result.mesh.castShadow = true
-      result.mesh.receiveShadow = true
-      csgMeshGroup.add(result.mesh)
+/** Modo "Pozo Booleano": dibuja el sólido calculado en segundo plano. */
+function renderComposite() {
+  const token = ++csgRenderToken
+  const viewMode = store.viewMode
+  const showDimensions = store.showDimensions
+  computeComposite(store.bloques).then(res => {
+    // Si mientras tanto cambió algo, este resultado ya no corresponde
+    if (res.superseded || token !== csgRenderToken || store.modelMode !== 'solidoFinal') return
+    clearScene()
+    if (res.geometry) {
+      // La geometría es compartida con el cálculo del volumen: no se libera acá
+      const mesh = new THREE.Mesh(res.geometry, compositeMaterial(viewMode))
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      csgMeshGroup.add(mesh)
 
       // Aristas técnicas de la figura final unida y perforada
-      const edgesGeom = new THREE.EdgesGeometry(geom, 20)
-      const edgesMat = new THREE.LineBasicMaterial({ color: 0x7dd3fc, linewidth: 1.5, transparent: true, opacity: 0.8 })
-      const edgesLine = new THREE.LineSegments(edgesGeom, edgesMat)
-      edgesGroup.add(edgesLine)
+      edgesGroup.add(new THREE.LineSegments(compositeEdges(res.geometry), compositeEdgesMaterial()))
 
       // Cotas envolventes del pozo completo
-      if (store.showDimensions) {
-        const box = new THREE.Box3().setFromObject(result.mesh)
-        const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0xfbbf24))
-        boxHelper.material.opacity = 0.5
-        boxHelper.material.transparent = true
-        dimensionsGroup.add(boxHelper)
+      if (showDimensions) {
+        res.geometry.computeBoundingBox()
+        dimensionsGroup.add(makeBoxHelper(res.geometry.boundingBox.clone()))
       }
     }
-    return
-  }
+    requestRender()
+  })
+}
 
-  // --- MODO EDICIÓN INDIVIDUAL ---
+/** Modo edición: cada pieza por separado, con el gizmo en la seleccionada. */
+function renderEditMode() {
+  const usedKeys = new Set()
   let selectedMesh = null
 
-  store.bloques.forEach(b => {
-    const def = GEOMETRY_TYPES[b.tipo_figura]
-    if (!def) return
+  for (const b of store.bloques) {
+    if (!GEOMETRY_TYPES[b.tipo_figura]) continue
 
-    const geometry = def.createGeometry(b)
+    const { geometry, edges } = blockGeometry(b, usedKeys)
     const isSelected = b.id === store.selectedBlockId
     const isSubtract = b.operacion === 'SUBSTRACCION'
 
-    let material
-    if (store.viewMode === 'alambrico') {
-      material = new THREE.MeshBasicMaterial({
-        color: isSubtract ? 0xf43f5e : (isSelected ? 0x38bdf8 : 0x0284c7),
-        wireframe: true
-      })
-    } else if (store.viewMode === 'rayosX') {
-      material = new THREE.MeshStandardMaterial({
-        color: isSubtract ? 0xf43f5e : (isSelected ? 0x38bdf8 : 0x0ea5e9),
-        transparent: true,
-        opacity: isSubtract ? 0.35 : 0.3,
-        roughness: 0.2,
-        metalness: 0.1,
-        depthWrite: false
-      })
-    } else {
-      material = new THREE.MeshStandardMaterial({
-        color: isSubtract ? 0xf43f5e : (isSelected ? 0x38bdf8 : 0x0284c7),
-        transparent: isSubtract,
-        opacity: isSubtract ? 0.55 : 0.95,
-        roughness: 0.35,
-        metalness: 0.15
-      })
-    }
-
-    const mesh = new THREE.Mesh(geometry, material)
+    const mesh = new THREE.Mesh(geometry, blockMaterial(store.viewMode, isSelected, isSubtract))
     mesh.position.set(b.pos_x, b.pos_y, b.pos_z)
     mesh.rotation.set(b.rot_x, b.rot_y, b.rot_z)
     mesh.castShadow = !isSubtract
     mesh.receiveShadow = true
     mesh.userData = { blockId: b.id }
-
     blockMeshGroup.add(mesh)
 
     // Aristas CAD
-    const edgesGeom = new THREE.EdgesGeometry(geometry, 25)
-    const edgesMat = new THREE.LineBasicMaterial({
-      color: isSelected ? 0xffffff : (isSubtract ? 0xff8888 : 0x38bdf8),
-      linewidth: isSelected ? 2 : 1,
-      transparent: true,
-      opacity: isSelected ? 0.95 : 0.4
-    })
-    const edgesLine = new THREE.LineSegments(edgesGeom, edgesMat)
+    const edgesLine = new THREE.LineSegments(edges, blockEdgesMaterial(isSelected, isSubtract))
     edgesLine.position.copy(mesh.position)
     edgesLine.rotation.copy(mesh.rotation)
     edgesGroup.add(edgesLine)
 
     if (isSelected) {
       selectedMesh = mesh
+      selectedParts = { mesh, edges: edgesLine, box: null }
 
       // Si está activo mostrar cotas, dibujar caja de cotas 3D
       if (store.showDimensions) {
         const box = new THREE.Box3().setFromObject(mesh)
-        const boxHelper = new THREE.Box3Helper(box, new THREE.Color(0xfbbf24))
-        boxHelper.material.opacity = 0.5
-        boxHelper.material.transparent = true
-        dimensionsGroup.add(boxHelper)
+        dimensionsGroup.add(makeBoxHelper(box))
+        selectedParts.box = box
       }
     }
-  })
+  }
+
+  pruneGeometryCache(usedKeys)
 
   // Adjuntar Gizmo al bloque seleccionado
   if (selectedMesh) {
@@ -519,20 +643,41 @@ function renderBlocks() {
   }
 }
 
-watch(() => store.bloques, () => renderBlocks(), { deep: true })
+/**
+ * Durante el arrastre con el gizmo la malla ya se mueve sola: solo se acompañan
+ * sus aristas y la caja de cotas, sin reconstruir la escena en cada movimiento.
+ */
+function syncSelectedDuringDrag() {
+  if (!selectedParts) return
+  const { mesh, edges, box } = selectedParts
+  edges.position.copy(mesh.position)
+  edges.rotation.copy(mesh.rotation)
+  if (box) box.setFromObject(mesh)
+  requestRender()
+}
+
+watch(() => store.bloques, () => {
+  if (isDraggingGizmo && store.modelMode === 'edicion') syncSelectedDuringDrag()
+  else renderBlocks()
+}, { deep: true })
 watch(() => store.selectedBlockId, () => renderBlocks())
 watch(() => store.viewMode, () => renderBlocks())
 watch(() => store.modelMode, () => renderBlocks())
 watch(() => store.showDimensions, () => renderBlocks())
 watch(() => store.transformMode, (newMode) => {
   if (transformControls) transformControls.setMode(newMode)
+  requestRender()
 })
 
+// ---------------------------------------------------------------------------
+// Cámara
+// ---------------------------------------------------------------------------
 function resetCamera() {
   if (!camera || !orbitControls) return
   // Esquina superior Babor-Proa (+X, +Y, -Z)
   camera.position.set(16, 11, -14)
   orbitControls.target.set(0, 1.5, 0)
+  requestRender()
 }
 
 function setCameraView(view) {
@@ -550,6 +695,7 @@ function setCameraView(view) {
     camera.position.set(0, 1.5, -20)
     orbitControls.target.set(0, 1.5, 0)
   }
+  requestRender()
 }
 
 function toggleTransformMode() {
