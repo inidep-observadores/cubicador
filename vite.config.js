@@ -32,10 +32,21 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        // Workers de SQLite WASM que esta app no usa (modo "opfs" y API Worker1):
+        // se publican porque la librería los referencia, pero no hace falta cachearlos
+        globIgnores: ['**/sqlite3-opfs-async-proxy-*.js', '**/sqlite3-worker1-*.js']
       }
     })
   ],
+  // Los workers usan import.meta (SQLite WASM localiza su .wasm así): formato ES
+  worker: {
+    format: 'es'
+  },
+  // SQLite WASM no debe pre-empaquetarse: localiza su .wasm relativo a su módulo
+  optimizeDeps: {
+    exclude: ['@sqlite.org/sqlite-wasm']
+  },
   build: {
     rollupOptions: {
       output: {

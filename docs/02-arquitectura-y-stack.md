@@ -14,11 +14,12 @@ graph TD
     Store --> Client["Cliente de cálculo 3D (csgClient.js)"]
     Engine3D --> Client
     Client --> Worker["Web Worker: motor booleano (three-csg-ts / BSP)"]
-    Store --> DBService["Servicio de Persistencia (db.js)"]
-    DBService --> WASM["SQLite en WebAssembly (sql.js)"]
-    WASM <--> IDB["Almacenamiento Local (IndexedDB / idb-keyval)"]
-    WASM --> Export[".sqlite Físico Descargable"]
-    DBService --> Safety["Protecciones (storageSafety.js): copias, candado de pestaña"]
+    Store --> DBService["Cliente de la base (db.js)"]
+    DBService --> DBWorker["Web Worker: SQLite WASM oficial (dbWorker.js)"]
+    DBWorker <--> OPFS["Archivo SQLite en el OPFS (opfs-sahpool)"]
+    DBWorker -. "sin OPFS" .-> IDB["Copia completa en IndexedDB"]
+    DBWorker --> Export[".sqlite Físico Descargable"]
+    Store --> Safety["Protecciones (storageSafety.js): copias, candado de pestaña"]
 ```
 
 ---
@@ -31,8 +32,9 @@ graph TD
 | **Estado Global** | Pinia | `^3.0.1` | Gestión reactiva de buques, pozos, bloques seleccionados, volúmenes e historial. |
 | **Motor 3D** | Three.js | `^0.174.0` | Renderizado WebGL, iluminación, cámaras, mallas y `TransformControls`. |
 | **Motor Booleano** | `three-csg-ts` | `^3.2.0` | Partición binaria del espacio (BSP) para uniones y cortes, ejecutado en un Web Worker. |
-| **Base de Datos** | `sql.js` (SQLite WASM) | `^1.12.0` (instalada 1.17) | Motor relacional completo en WebAssembly, importado como módulo. |
-| **Persistencia Local**| `idb-keyval` | `^6.2.1` | Almacenamiento del binario SQLite y de las copias automáticas en IndexedDB. |
+| **Base de Datos** | `@sqlite.org/sqlite-wasm` | `^3.54.1-build1` | SQLite oficial compilado a WebAssembly, en un Web Worker. |
+| **Persistencia Local**| OPFS (VFS `opfs-sahpool`) | — | Archivo SQLite real en el almacenamiento privado del origen; escrituras por páginas con journal. |
+| **Copias y respaldo** | `idb-keyval` | `^6.2.1` | Copias automáticas en IndexedDB y, en navegadores sin OPFS, la base completa. |
 | **Estilos y Diseño** | Tailwind CSS | `^3.4.17` | Interfaz oscura con paleta naval. |
 | **Iconografía** | Lucide Vue Next | `^0.475.0` | Iconos de la interfaz. |
 | **Bundler y PWA** | Vite + `vite-plugin-pwa` | Vite 6 | Compilación, Service Worker, manifiesto e íconos de la PWA. |
@@ -97,11 +99,23 @@ CREATE TABLE IF NOT EXISTS bloques (
 
 ## 4. Persistencia y Protección de los Datos
 
+### Almacenamiento
+La base vive en un **Web Worker** (`src/workers/dbWorker.js`) con el SQLite oficial en WebAssembly. El hilo principal la usa a través de `src/services/db.js`, con operaciones asíncronas (`query`, `run`, `batch` en una transacción, `export`, `replace`).
+
+- **Modo principal: archivo SQLite en el OPFS** (Origin Private File System) con el VFS `opfs-sahpool`. Cada cambio se escribe por páginas, con el journal de SQLite, sin reescribir la base entera. No requiere cabeceras COOP/COEP en el servidor. Navegadores: Chrome/Edge 108+, Safari 16.4+, Firefox 111+.
+- **Modo compatible:** si el navegador no admite OPFS en workers, la base vive en memoria y su copia completa se guarda en IndexedDB después de cada escritura. El menú de respaldos indica qué modo está en uso.
+- **Paso desde la versión anterior:** la primera vez, la base que estaba en IndexedDB se valida, se migra de esquema si hace falta y se copia al OPFS. La original queda como copia ("Base anterior al cambio de almacenamiento") y se borra de su ubicación vieja.
+- El VFS se instala con `preserveOnInitFailure`: sin esa opción, un fallo de inicialización (por ejemplo, si otra pestaña todavía no soltó los archivos) **borraría todo el almacenamiento**.
+- El esquema y las migraciones usan un adaptador (`src/services/sqliteCompat.js`), así que las pruebas en Node ejercitan el mismo motor que la app.
+
+### Protecciones
+
 | Riesgo | Protección |
 | :--- | :--- |
 | El navegador borra los datos por falta de espacio o inactividad | Se pide almacenamiento persistente (`navigator.storage.persist`). Instalar la app como PWA ayuda a que se conceda. |
 | Cerrar la pestaña con cambios sin guardar | Se guarda lo pendiente al ocultar o cerrar la pestaña (`visibilitychange` / `pagehide`). |
-| Dos pestañas pisándose los datos | Candado de pestaña única con la Web Locks API: la segunda pestaña puede tomar el control y la primera deja de escribir. |
+| Dos pestañas pisándose los datos | Candado de pestaña única con la Web Locks API: la segunda pestaña puede tomar el control; la primera cierra la base y suelta los archivos del OPFS. |
+| Cerrar la app a mitad de un guardado | Las piezas de un pozo se guardan en una sola transacción; con OPFS, el journal de SQLite deja la base en el estado anterior o en el nuevo, nunca a medias. |
 | Un error que daña la base | Copias automáticas dentro del navegador: una diaria y otra antes de migrar, importar o restaurar (se conservan las últimas 10). |
 | Pérdida del equipo o del navegador | Exportación a archivo `.sqlite` e importación desde el menú de respaldos; aviso si pasan 7 días sin exportar. |
 
@@ -141,17 +155,19 @@ cubicador/
 │   │   ├── csgClient.js         # Acceso al cálculo 3D (worker + caché)
 │   │   ├── csgCompute.js        # Cálculo booleano como datos transferibles
 │   │   ├── csgService.js        # Operaciones booleanas BSP, volumen y snap
-│   │   ├── db.js                # SQLite WASM, persistencia, importación y exportación
+│   │   ├── db.js                # Cliente de la base (worker), importación y exportación
 │   │   ├── dialog.js            # API de los diálogos (confirmDialog, promptDialog…)
 │   │   ├── geometryCatalog.js   # Las 10 figuras navales, fórmulas y mallas
 │   │   ├── install.js           # Instalación de la PWA
 │   │   ├── migrations.js        # Validación y versionado del esquema
 │   │   ├── schema.js            # Tablas y datos de ejemplo
+│   │   ├── sqliteCompat.js      # Adaptador del motor para el esquema y las migraciones
 │   │   └── storageSafety.js     # Persistencia, candado de pestaña y copias
 │   ├── stores/
 │   │   └── editorStore.js       # Estado Pinia, historial y guardado
 │   ├── workers/
-│   │   └── csgWorker.js         # Web Worker del cálculo 3D
+│   │   ├── csgWorker.js         # Web Worker del cálculo 3D
+│   │   └── dbWorker.js          # Web Worker de la base (SQLite + OPFS)
 │   ├── App.vue                  # Componente raíz
 │   └── main.js                  # Entrada Vite
 ├── tests/                       # npm test
@@ -170,4 +186,5 @@ cubicador/
   $env:BASE_PATH = '/cubicador/'; npm run build
   ```
 
-  Las rutas del `.wasm`, del worker, del service worker y del manifiesto se ajustan solas.
+  Las rutas de los `.wasm`, de los workers, del service worker y del manifiesto se ajustan solas.
+- El servidor debe servir los `.wasm` con el tipo `application/wasm` (los hostings estáticos habituales ya lo hacen). No hacen falta cabeceras COOP/COEP.

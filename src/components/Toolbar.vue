@@ -241,6 +241,12 @@
             Instalá la app y exportá respaldos .sqlite con frecuencia.
           </p>
 
+          <p class="text-slate-400 text-[11px]">
+            Almacenamiento:
+            <span v-if="store.storageBackend === 'opfs'" class="text-slate-200">archivo SQLite del navegador (OPFS)</span>
+            <span v-else class="text-amber-300" title="Este navegador no admite OPFS en segundo plano: la base se guarda completa en IndexedDB después de cada cambio">memoria + IndexedDB (modo compatible)</span>
+          </p>
+
           <p class="text-slate-500 text-[11px]">
             Se guardan dentro de este navegador: sirven para volver atrás, pero no reemplazan un archivo exportado.
           </p>

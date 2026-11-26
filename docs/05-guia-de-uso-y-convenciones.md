@@ -82,7 +82,7 @@ La barra superior muestra el volumen del pozo con una etiqueta que indica de dó
 
 ## 7. Respaldos y Persistencia
 
-- **Auto-guardado continuo:** Cada modificación se guarda automáticamente en SQLite sobre IndexedDB, también al cerrar u ocultar la pestaña.
+- **Auto-guardado continuo:** Cada modificación se guarda automáticamente en un archivo SQLite dentro del navegador (OPFS), también al cerrar u ocultar la pestaña. En navegadores sin OPFS se usa un modo compatible sobre IndexedDB; el menú de respaldos indica cuál está en uso.
 - **Botón "Respaldar DB":** Descarga el archivo `.sqlite` con todos los buques, pozos y piezas, para transferir la información entre computadoras o conservarla como resguardo de la marea. Se pone en ámbar si pasaron 7 días sin exportar.
 - **Menú de respaldos (🕘):**
   - **Exportar / Importar .sqlite.** Al importar se valida el archivo y la base actual se guarda como copia antes de reemplazarla.

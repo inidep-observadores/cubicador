@@ -1,11 +1,21 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import initSqlJs from 'sql.js'
+import sqlite3InitModule from '@sqlite.org/sqlite-wasm'
+import { sqlJsCompat, openFromBytes } from '../src/services/sqliteCompat.js'
 import { initTables } from '../src/services/schema.js'
 import { migrateDatabase, getSchemaVersion, SCHEMA_VERSION } from '../src/services/migrations.js'
 import { buildCompositePozo, getBlockBounds } from '../src/services/csgService.js'
 
-const SQL = await initSqlJs()
+// Mismo motor y mismo adaptador que usa el worker de la app
+const sqlite3 = await sqlite3InitModule()
+const SQL = {
+  // Se usa con `new`: al devolver un objeto, ese objeto es el resultado
+  Database: function (bytes) {
+    return bytes
+      ? sqlJsCompat(sqlite3, openFromBytes(sqlite3, bytes))
+      : sqlJsCompat(sqlite3, new sqlite3.oo1.DB(':memory:'))
+  }
+}
 
 const COLS = 'id, pozo_id, orden, nombre, tipo_figura, operacion, largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual'
 
@@ -106,11 +116,19 @@ test('esquema: las claves foráneas borran en cascada cuando están activas', ()
   assert.throws(() => db.run(`INSERT INTO bloques (${COLS}) VALUES (99, 999, 1, 'x', 'caja', 'UNION', 1,1,1,0,0,0,0,0,0,0,0,0,0,1)`), /FOREIGN KEY/)
 })
 
-test('sql.js: exportar la base no desactiva las claves foráneas', () => {
-  // La app guarda con export() muchas veces; si una versión nueva de sql.js
+test('motor: exportar la base no desactiva las claves foráneas', () => {
+  // Las copias de seguridad exportan la base; si una versión nueva del motor
   // reabriera la conexión sin el PRAGMA, las claves foráneas dejarían de aplicarse
   const db = baseLegacy()
   db.run('PRAGMA foreign_keys = ON')
   db.export()
   assert.equal(db.exec('PRAGMA foreign_keys')[0].values[0][0], 1)
+})
+
+test('motor: una base exportada se vuelve a abrir con los mismos datos', () => {
+  const db = baseLegacy()
+  migrateDatabase(db)
+  const copia = new SQL.Database(db.export())
+  assert.equal(JSON.stringify(bloques(copia, 1)), JSON.stringify(bloques(db, 1)))
+  assert.equal(getSchemaVersion(copia), SCHEMA_VERSION)
 })

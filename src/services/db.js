@@ -1,92 +1,98 @@
-import { get, set } from 'idb-keyval'
-import initSqlJs from 'sql.js'
-import sqlWasmUrl from 'sql.js/dist/sql-wasm-browser.wasm?url'
-import { migrateDatabase, setSchemaVersion, getSchemaVersion, validateSchema, SCHEMA_VERSION } from './migrations.js'
-import { saveBackup, markExported } from './storageSafety.js'
-import { initTables, seedInitialData } from './schema.js'
-
-const DB_STORAGE_KEY = 'cubicacion_pozos_sqlite_db'
-let dbInstance = null
-// false cuando otra pestaña tomó el control de la base: esta no debe sobrescribirla
-let writesEnabled = true
-
-export function setWritesEnabled(enabled) {
-  writesEnabled = enabled
-}
+import { markExported } from './storageSafety.js'
 
 /**
- * SQLite no aplica las claves foráneas (ni ON DELETE CASCADE) salvo que se
- * active en cada conexión.
+ * Acceso a la base de datos desde el hilo principal.
+ *
+ * La base vive en un Web Worker (src/workers/dbWorker.js): archivo SQLite en el
+ * OPFS, o en memoria con copia en IndexedDB si el navegador no admite OPFS.
+ * Todas las operaciones son asíncronas y se atienden en orden.
  */
-function enableForeignKeys(db) {
-  db.run('PRAGMA foreign_keys = ON')
+
+let worker = null
+let nextId = 1
+const pending = new Map() // id → { resolve, reject }
+
+function rejectAll(error) {
+  for (const p of pending.values()) p.reject(error)
+  pending.clear()
 }
 
-let sqlPromise = null
+function getWorker() {
+  if (worker) return worker
+  worker = new Worker(new URL('../workers/dbWorker.js', import.meta.url), { type: 'module' })
+  worker.onmessage = event => {
+    const { id, result, error } = event.data
+    const p = pending.get(id)
+    if (!p) return
+    pending.delete(id)
+    if (error) p.reject(new Error(error))
+    else p.resolve(result)
+  }
+  worker.onerror = event => {
+    event.preventDefault?.()
+    rejectAll(new Error(`No se pudo iniciar la base de datos: ${event.message || 'error del worker'}`))
+  }
+  return worker
+}
 
-/** Carga el motor SQLite (WASM) una sola vez. */
-function loadSql() {
-  // Vite resuelve la URL del .wasm con la ruta base de la app y lo incluye en la caché offline
-  sqlPromise ||= initSqlJs({ locateFile: () => sqlWasmUrl }).catch(err => {
-    sqlPromise = null
-    throw new Error(`No se pudo cargar el motor SQLite: ${err.message || err}`)
+function call(op, args = [], transfer = []) {
+  const w = worker || (op === 'open' ? getWorker() : null)
+  if (!w) return Promise.reject(new Error('La base de datos no está abierta.'))
+  const id = nextId++
+  return new Promise((resolve, reject) => {
+    pending.set(id, { resolve, reject })
+    w.postMessage({ id, op, args }, transfer)
   })
-  return sqlPromise
 }
 
 /**
- * Abre una base a partir de sus bytes y la lleva al esquema actual.
- * Antes de migrar guarda una copia de la versión original.
+ * Abre la base (y la crea o migra si hace falta).
+ * @returns {Promise<{ backend: 'opfs'|'memoria', origen: string }>}
  */
-async function openAndMigrate(SQL, bytes) {
-  const db = new SQL.Database(new Uint8Array(bytes))
+export function openDatabase() {
+  return call('open')
+}
+
+/** Filas como objetos { columna: valor }. */
+export function query(sql, params = []) {
+  return call('query', [sql, params])
+}
+
+/** @returns {Promise<{ changes: number, lastInsertRowid: number }>} */
+export function run(sql, params = []) {
+  return call('run', [sql, params])
+}
+
+/** Varias sentencias [{ sql, params }] en una sola transacción. */
+export function batch(statements) {
+  return call('batch', [statements])
+}
+
+/** Copia completa de la base como archivo SQLite. */
+export function exportDatabaseBytes() {
+  return call('export')
+}
+
+/**
+ * Cierra la base y termina el worker, soltando los archivos del OPFS para que
+ * otra pestaña pueda abrirlos. Después de esto no se puede escribir.
+ */
+export async function closeDatabase() {
+  if (!worker) return
+  const w = worker
   try {
-    enableForeignKeys(db)
-    validateSchema(db) // antes que nada: no respaldar ni migrar archivos ajenos
-    const version = getSchemaVersion(db)
-    if (version < SCHEMA_VERSION) {
-      await saveBackup(bytes, `Antes de actualizar el formato (v${version} → v${SCHEMA_VERSION})`)
-    }
-    const migrated = migrateDatabase(db)
-    return { db, migrated }
-  } catch (err) {
-    db.close()
-    throw err
+    await Promise.race([call('close'), new Promise(r => setTimeout(r, 1000))])
+  } catch {
+    // Igual se termina el worker: al terminarlo el navegador libera los archivos
   }
-}
-
-export async function getDatabase() {
-  if (dbInstance) return dbInstance
-
-  const SQL = await loadSql()
-
-  const savedDbData = await get(DB_STORAGE_KEY)
-  if (savedDbData) {
-    const { db, migrated } = await openAndMigrate(SQL, savedDbData)
-    dbInstance = db
-    if (migrated) await persistDatabase()
-  } else {
-    dbInstance = new SQL.Database()
-    enableForeignKeys(dbInstance)
-    initTables(dbInstance)
-    seedInitialData(dbInstance)
-    setSchemaVersion(dbInstance)
-    await persistDatabase()
-  }
-
-  return dbInstance
-}
-
-export async function persistDatabase() {
-  if (!dbInstance || !writesEnabled) return
-  const binaryData = dbInstance.export()
-  await set(DB_STORAGE_KEY, binaryData)
+  w.terminate()
+  if (worker === w) worker = null
+  rejectAll(new Error('La base de datos se cerró.'))
 }
 
 export async function exportDatabaseFile() {
-  if (!dbInstance) return null
-  const binaryData = dbInstance.export()
-  const blob = new Blob([binaryData], { type: 'application/x-sqlite3' })
+  const bytes = await exportDatabaseBytes()
+  const blob = new Blob([bytes], { type: 'application/x-sqlite3' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -97,22 +103,13 @@ export async function exportDatabaseFile() {
   return markExported()
 }
 
-/** Bytes de la base actual, por ejemplo para una copia de seguridad. */
-export function exportDatabaseBytes() {
-  return dbInstance ? dbInstance.export() : null
-}
-
 /**
- * Reemplaza la base actual por otra (copia o archivo importado).
- * La base actual se guarda antes como copia para poder volver atrás.
+ * Reemplaza la base actual por otra (copia o archivo importado). El worker la
+ * valida y migra antes de tocar la actual, y guarda la actual como copia.
  */
-export async function replaceDatabase(bytes, motivo) {
-  const SQL = await loadSql()
-  const { db } = await openAndMigrate(SQL, bytes) // falla antes de tocar la base actual
-  if (dbInstance) await saveBackup(dbInstance.export(), motivo)
-  dbInstance = db
-  await persistDatabase()
-  return dbInstance
+export function replaceDatabase(bytes, motivo) {
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  return call('replace', [data, motivo])
 }
 
 export async function importDatabaseFile(file) {

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import {
-  getDatabase, persistDatabase, setWritesEnabled, exportDatabaseFile,
+  openDatabase, closeDatabase, query, run, batch, exportDatabaseFile,
   exportDatabaseBytes, replaceDatabase, importDatabaseFile
 } from '../services/db'
 import {
@@ -19,7 +19,8 @@ export const useEditorStore = defineStore('editor', {
   state: () => ({
     isLoading: true,
     loadError: null,
-    db: null,
+    dbReady: false, // la base está abierta en esta pestaña
+    storageBackend: null, // 'opfs' (archivo SQLite) | 'memoria' (copia en IndexedDB)
 
     // Protecciones del almacenamiento
     storagePersisted: null, // true/false; null = el navegador no informa
@@ -122,11 +123,12 @@ export const useEditorStore = defineStore('editor', {
 
     async openDatabase() {
       this.tabStatus = 'ok'
-      setWritesEnabled(true)
-      this.db = await getDatabase()
+      const { backend } = await openDatabase()
+      this.storageBackend = backend
+      this.dbReady = true
       await this.reloadFromDb()
       try {
-        await ensureDailyBackup(exportDatabaseBytes())
+        await ensureDailyBackup(await exportDatabaseBytes())
       } catch (err) {
         console.warn('No se pudo guardar la copia diaria:', err)
       }
@@ -135,6 +137,8 @@ export const useEditorStore = defineStore('editor', {
 
     async reloadFromDb() {
       this.selectedBlockId = null
+      const [{ maxId }] = await query('SELECT COALESCE(MAX(id), 0) AS maxId FROM bloques')
+      this._maxBlockId = Number(maxId) || 0
       await this.loadBuques()
       if (this.buques.length > 0) {
         await this.selectBuque(this.buques[0].id)
@@ -166,14 +170,18 @@ export const useEditorStore = defineStore('editor', {
       }
     },
 
-    /** Otra pestaña tomó el control: esta deja de escribir para no pisar sus datos. */
+    /**
+     * Otra pestaña tomó el control: esta cierra la base (suelta los archivos del
+     * OPFS para que la otra pueda abrirlos) y deja de escribir.
+     */
     onTabLockLost() {
       clearTimeout(this._debounceTimer)
       clearTimeout(this._debounceVolTimer)
       this._debounceTimer = null
       this._debounceVolTimer = null
-      setWritesEnabled(false)
+      this.dbReady = false
       this.tabStatus = 'desplazada'
+      closeDatabase()
     },
 
     /**
@@ -185,25 +193,24 @@ export const useEditorStore = defineStore('editor', {
       if (this._debounceTimer) this.flushPendingSave()
     },
 
-    /** Guarda ya lo pendiente (al cerrar u ocultar la pestaña). */
+    /**
+     * Guarda ya lo pendiente (al cerrar u ocultar la pestaña, o antes de exportar).
+     * Devuelve una promesa que se cumple cuando la base lo escribió.
+     */
     flushPendingSave() {
-      if (this.tabStatus !== 'ok') return
+      if (this.tabStatus !== 'ok' || !this.dbReady) return Promise.resolve()
       clearTimeout(this._debounceVolTimer)
       this._debounceVolTimer = null
-      if (this._debounceTimer) {
-        clearTimeout(this._debounceTimer)
-        this._debounceTimer = null
-        this.updateVolumenReal()
-        this.saveBloquesToDb()
-      } else {
-        persistDatabase()
-      }
+      if (!this._debounceTimer) return Promise.resolve()
+      clearTimeout(this._debounceTimer)
+      this._debounceTimer = null
+      return this.saveBloquesToDb()
     },
 
     // --- Copias y respaldos ---
 
     async exportDatabase() {
-      this.flushPendingSave()
+      await this.flushPendingSave()
       this.lastExportAt = await exportDatabaseFile()
     },
 
@@ -221,8 +228,8 @@ export const useEditorStore = defineStore('editor', {
       if (!ok) return
       this.isLoading = true
       try {
-        this.flushPendingSave()
-        this.db = await importDatabaseFile(file)
+        await this.flushPendingSave()
+        await importDatabaseFile(file)
         await this.reloadFromDb()
         await this.refreshBackupInfo()
       } catch (err) {
@@ -248,10 +255,10 @@ export const useEditorStore = defineStore('editor', {
       if (!ok) return
       this.isLoading = true
       try {
-        this.flushPendingSave()
+        await this.flushPendingSave()
         const data = await getBackupData(id)
         if (!data) throw new Error('La copia ya no existe.')
-        this.db = await replaceDatabase(data, 'Antes de restaurar una copia')
+        await replaceDatabase(data, 'Antes de restaurar una copia')
         await this.reloadFromDb()
         await this.refreshBackupInfo()
       } catch (err) {
@@ -262,18 +269,8 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async loadBuques() {
-      if (!this.db) return
-      const res = this.db.exec("SELECT * FROM buques ORDER BY id ASC")
-      if (res.length > 0) {
-        const cols = res[0].columns
-        this.buques = res[0].values.map(row => {
-          const item = {}
-          cols.forEach((col, i) => item[col] = row[i])
-          return item
-        })
-      } else {
-        this.buques = []
-      }
+      if (!this.dbReady) return
+      this.buques = await query('SELECT * FROM buques ORDER BY id ASC')
     },
 
     async selectBuque(buqueId) {
@@ -289,31 +286,26 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async loadPozos(buqueId) {
-      if (!this.db) return
-      const stmt = this.db.prepare("SELECT * FROM pozos WHERE buque_id = ? ORDER BY id ASC")
-      stmt.bind([buqueId])
-      const list = []
-      while (stmt.step()) {
-        list.push(stmt.getAsObject())
-      }
-      stmt.free()
-      this.pozos = list
+      if (!this.dbReady) return
+      this.pozos = await query('SELECT * FROM pozos WHERE buque_id = ? ORDER BY id ASC', [buqueId])
     },
 
     async selectPozo(pozoId) {
       this.savePendingEditsNow()
-      this.selectedPozoId = pozoId
       await this.loadBloques(pozoId)
       this.resetHistory()
     },
 
+    /**
+     * Carga las piezas de un pozo y lo deja seleccionado. El pozo y sus piezas
+     * se asignan juntos, después de leer la base: si el pozo cambiara antes, un
+     * guardado pendiente podría escribir las piezas del anterior en el nuevo.
+     */
     async loadBloques(pozoId) {
-      if (!this.db) return
-      const stmt = this.db.prepare("SELECT * FROM bloques WHERE pozo_id = ? ORDER BY orden ASC")
-      stmt.bind([pozoId])
+      if (!this.dbReady) return
+      const rows = await query('SELECT * FROM bloques WHERE pozo_id = ? ORDER BY orden ASC', [pozoId])
       const list = []
-      while (stmt.step()) {
-        const b = stmt.getAsObject()
+      for (const b of rows) {
         // Asegurar tipos numéricos
         b.largo = Number(b.largo) || 1
         b.ancho = Number(b.ancho) || 1
@@ -333,7 +325,7 @@ export const useEditorStore = defineStore('editor', {
         b.volumen_individual = def ? def.calculateVolume(b) : (Number(b.volumen_individual) || 0)
         list.push(b)
       }
-      stmt.free()
+      this.selectedPozoId = pozoId
       this.bloques = list
       // Al cambiar de pozo, la selección anterior pertenece a otro pozo
       this.ensureValidSelection()
@@ -452,7 +444,7 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async createNewPozo() {
-      if (!this.db || !this.selectedBuqueId) return
+      if (!this.dbReady || !this.selectedBuqueId) return
       const nombre = await promptDialog({
         title: 'Nuevo pozo',
         message: 'Nombre del pozo (por ejemplo: Pozo N° 2 Estribor).',
@@ -461,12 +453,11 @@ export const useEditorStore = defineStore('editor', {
       })
       if (!nombre) return
 
-      this.db.run(
+      await this.flushPendingSave()
+      const { lastInsertRowid: nuevoId } = await run(
         "INSERT INTO pozos (buque_id, nombre, volumen_total, densidad_estiba, notas) VALUES (?, ?, 0, 800, '')",
         [this.selectedBuqueId, nombre]
       )
-      const nuevoId = this.db.exec('SELECT last_insert_rowid()')[0].values[0][0]
-      await persistDatabase()
       await this.loadPozos(this.selectedBuqueId)
       const nuevo = this.pozos.find(p => p.id === nuevoId)
       if (nuevo) {
@@ -507,8 +498,9 @@ export const useEditorStore = defineStore('editor', {
         this.csgError = null
       }
 
-      if (this.db && pozoId) {
-        this.db.run("UPDATE pozos SET volumen_total = ? WHERE id = ?", [this.volumenTotal, pozoId])
+      if (this.dbReady && pozoId) {
+        run('UPDATE pozos SET volumen_total = ? WHERE id = ?', [this.volumenTotal, pozoId])
+          .catch(err => console.warn('No se pudo guardar el volumen del pozo:', err))
       }
     },
 
@@ -520,24 +512,26 @@ export const useEditorStore = defineStore('editor', {
     },
 
     async saveBloquesToDb() {
-      if (!this.db || !this.selectedPozoId) return
+      if (!this.dbReady || !this.selectedPozoId) return
       // Todo cambio de piezas pasa por acá (agregar, borrar, duplicar, cambiar rol…):
       // recalcular el volumen real. Si las piezas no cambiaron, sale de la caché.
       this.updateVolumenReal()
-      try {
-        // Eliminar y reinsertar bloques del pozo actual
-        this.db.run("DELETE FROM bloques WHERE pozo_id = ?", [this.selectedPozoId])
-        const insertStmt = this.db.prepare(`
-          INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion,
-                               largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor,
-                               pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
 
-        this.bloques.forEach((b, idx) => {
-          insertStmt.run([
+      // Las sentencias se arman ya, con el pozo y las piezas de este momento:
+      // la escritura es asíncrona y mientras tanto el usuario puede cambiar de pozo.
+      const pozoId = this.selectedPozoId
+      const INSERT = `
+        INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion,
+                             largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor,
+                             pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      const statements = [{ sql: 'DELETE FROM bloques WHERE pozo_id = ?', params: [pozoId] }]
+      this.bloques.forEach((b, idx) => {
+        statements.push({
+          sql: INSERT,
+          params: [
             b.id,
-            this.selectedPozoId,
+            pozoId,
             idx + 1,
             b.nombre,
             b.tipo_figura,
@@ -556,16 +550,17 @@ export const useEditorStore = defineStore('editor', {
             b.rot_y || 0,
             b.rot_z || 0,
             b.volumen_individual || 0
-          ])
+          ]
         })
-        insertStmt.free()
+      })
+      // Actualizar volumen total en la tabla pozos
+      statements.push({ sql: 'UPDATE pozos SET volumen_total = ? WHERE id = ?', params: [this.volumenTotal, pozoId] })
 
-        // Actualizar volumen total en la tabla pozos
-        this.db.run("UPDATE pozos SET volumen_total = ? WHERE id = ?", [this.volumenTotal, this.selectedPozoId])
-
-        await persistDatabase()
+      try {
+        // En una sola transacción: o se guardan todas las piezas o ninguna
+        await batch(statements)
       } catch (e) {
-        console.error('Error al persistir bloques en SQLite:', e)
+        console.error('Error al guardar las piezas:', e)
       }
     },
 
@@ -654,16 +649,14 @@ export const useEditorStore = defineStore('editor', {
 
     /**
      * Identificador nuevo para una pieza. Los ids son únicos en toda la tabla
-     * (no por pozo), así que se toma el mayor entre la base y la memoria.
+     * (no por pozo): se parte del mayor de la base, leído al abrirla, y nunca se
+     * repite uno ya entregado en esta sesión.
      */
     nextBlockId() {
-      let max = 0
-      if (this.db) {
-        const res = this.db.exec('SELECT COALESCE(MAX(id), 0) FROM bloques')
-        max = Number(res[0]?.values[0][0]) || 0
-      }
+      let max = this._maxBlockId || 0
       for (const b of this.bloques) max = Math.max(max, Number(b.id) || 0)
-      return max + 1
+      this._maxBlockId = max + 1
+      return this._maxBlockId
     }
   }
 })

@@ -11,10 +11,10 @@
     "icons": "node scripts/generar-iconos.mjs"
   },
   "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.54.1-build1",
     "idb-keyval": "^6.2.1",
     "lucide-vue-next": "^0.475.0",
     "pinia": "^3.0.1",
-    "sql.js": "^1.12.0",
     "three": "^0.174.0",
     "three-csg-ts": "^3.2.0",
     "vue": "^3.5.13"
