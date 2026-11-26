@@ -8,8 +8,9 @@ export function initTables(db) {
     CREATE TABLE IF NOT EXISTS buques (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
-      matricula TEXT,
-      armador TEXT,
+      matricula TEXT, -- opcional, sin uso en la interfaz
+      armador TEXT,   -- opcional, sin uso en la interfaz
+      densidad_estiba REAL DEFAULT 800.0, -- factor de captura del buque (kg/m³)
       creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -56,8 +57,8 @@ export function initTables(db) {
 
 export function seedInitialData(db) {
   db.run(`
-    INSERT INTO buques (id, nombre, matricula, armador) 
-    VALUES (1, 'B/P Atlántico Austral', '01842-M', 'Pesquera del Sur S.A.');
+    INSERT INTO buques (id, nombre, matricula, armador, densidad_estiba) 
+    VALUES (1, 'B/P Atlántico Austral', '01842-M', 'Pesquera del Sur S.A.', 850.0);
 
     INSERT INTO pozos (id, buque_id, nombre, volumen_total, densidad_estiba, notas)
     VALUES (1, 1, 'Pozo N° 1 (Proa Babor)', 84.5, 850.0, 'Pozo principal con rampa de descarga y columna de refrigeración');

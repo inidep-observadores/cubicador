@@ -363,7 +363,7 @@ async function confirmDeleteBlock(bloque) {
 
 function onKeyDown(e) {
   // Con un diálogo abierto, el teclado es del diálogo
-  if (dialogState.open) return
+  if (dialogState.open || store.recordForm) return
   // Mientras se escribe en un campo, el teclado es del campo (incluido su propio Ctrl+Z)
   if (isEditable(e.target)) return
 

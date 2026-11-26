@@ -5,45 +5,51 @@
       <div class="bg-sky-600/20 text-sky-400 p-2 rounded-lg border border-sky-500/30 flex items-center justify-center">
         <Ship class="w-5 h-5" />
       </div>
-      <div>
-        <div class="flex items-center space-x-2">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Buque</span>
-          <select 
-            v-if="store.buques.length" 
-            :value="store.selectedBuqueId" 
-            @change="store.selectBuque(Number($event.target.value))"
-            class="bg-slate-800 text-sm font-bold text-white border border-slate-700 rounded px-2 py-0.5 focus:outline-none focus:border-sky-500 cursor-pointer"
-          >
-            <option v-for="b in store.buques" :key="b.id" :value="b.id">
-              {{ b.nombre }} ({{ b.matricula }})
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center space-x-2 mt-0.5">
-          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Pozo</span>
-          <select 
-            v-if="store.pozos.length" 
-            :value="store.selectedPozoId" 
-            @change="store.selectPozo(Number($event.target.value))"
-            class="bg-slate-800 text-xs font-medium text-sky-300 border border-slate-700 rounded px-1.5 py-0.5 focus:outline-none focus:border-sky-500 cursor-pointer"
-          >
-            <option v-for="p in store.pozos" :key="p.id" :value="p.id">
-              {{ p.nombre }}
-            </option>
-          </select>
-          <button 
-            @click="store.createNewPozo()"
-            title="Crear un nuevo pozo en este buque"
-            class="p-1 hover:bg-slate-800 text-sky-400 hover:text-white rounded border border-slate-700 text-xs font-bold transition"
-          >
-            + Nuevo
+      <div class="grid grid-cols-[auto_auto_auto] items-center gap-x-2 gap-y-1">
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Buque</span>
+        <select
+          :value="store.selectedBuqueId ?? ''"
+          :disabled="!store.buques.length"
+          @change="store.selectBuque(Number($event.target.value))"
+          aria-label="Buque"
+          class="max-w-[220px] bg-slate-800 text-sm font-bold text-white border border-slate-700 rounded px-2 py-0.5 focus:outline-none focus:border-sky-500 cursor-pointer"
+        >
+          <option v-if="!store.buques.length" value="">Sin buques</option>
+          <option v-for="b in store.buques" :key="b.id" :value="b.id">
+            {{ b.nombre }}
+          </option>
+        </select>
+        <div class="flex items-center gap-1">
+          <button @click="store.openRecordForm('buque', store.selectedBuqueId)" :disabled="!store.selectedBuqueId" title="Editar o eliminar el buque" aria-label="Editar buque" class="p-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition disabled:opacity-30 disabled:hover:bg-transparent">
+            <Pencil class="w-3.5 h-3.5" />
           </button>
-          <button 
-            @click="store.clearCurrentPozo()"
-            title="Limpiar este pozo y empezar con una caja base limpia"
-            class="p-1 hover:bg-slate-800 text-slate-400 hover:text-amber-300 rounded border border-slate-700 text-xs transition"
-          >
-            ↺ Reiniciar
+          <button @click="store.openRecordForm('buque')" title="Nuevo buque" aria-label="Nuevo buque" class="p-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition disabled:opacity-30 disabled:hover:bg-transparent !text-sky-400">
+            <Plus class="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Pozo</span>
+        <select
+          :value="store.selectedPozoId ?? ''"
+          :disabled="!store.pozos.length"
+          @change="store.selectPozo(Number($event.target.value))"
+          aria-label="Pozo"
+          class="max-w-[220px] bg-slate-800 text-xs font-medium text-sky-300 border border-slate-700 rounded px-1.5 py-0.5 focus:outline-none focus:border-sky-500 cursor-pointer"
+        >
+          <option v-if="!store.pozos.length" value="">Sin pozos</option>
+          <option v-for="p in store.pozos" :key="p.id" :value="p.id">
+            {{ p.nombre }}
+          </option>
+        </select>
+        <div class="flex items-center gap-1">
+          <button @click="store.openRecordForm('pozo', store.selectedPozoId)" :disabled="!store.selectedPozoId" title="Editar o eliminar el pozo" aria-label="Editar pozo" class="p-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition disabled:opacity-30 disabled:hover:bg-transparent">
+            <Pencil class="w-3.5 h-3.5" />
+          </button>
+          <button @click="store.openRecordForm('pozo')" :disabled="!store.selectedBuqueId" title="Nuevo pozo en este buque" aria-label="Nuevo pozo" class="p-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition disabled:opacity-30 disabled:hover:bg-transparent !text-sky-400">
+            <Plus class="w-3.5 h-3.5" />
+          </button>
+          <button @click="store.clearCurrentPozo()" :disabled="!store.selectedPozoId" title="Reiniciar: dejar el pozo con una caja base" aria-label="Reiniciar pozo" class="p-1 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition disabled:opacity-30 disabled:hover:bg-transparent hover:!text-amber-300">
+            <RotateCcw class="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -127,9 +133,15 @@
           <span>{{ store.capturaEstimadaToneladas.toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">Ton</span>
         </div>
-        <div class="text-[9px] text-slate-500">
-          Factor: {{ ((store.selectedPozo?.densidad_estiba || 800) / 1000).toFixed(2) }} t/m³
-        </div>
+        <button
+          @click="store.openRecordForm('buque', store.selectedBuqueId)"
+          :disabled="!store.selectedBuqueId"
+          title="Factor de captura del buque. Clic para cambiarlo"
+          class="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-sky-300 transition"
+        >
+          Factor: {{ formatDecimal(store.densidadEstiba / 1000) }} t/m³
+          <Pencil class="w-2.5 h-2.5" />
+        </button>
       </div>
     </div>
 
@@ -300,9 +312,10 @@ import { ref, computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import {
   Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, Sparkles, History,
-  Download, Upload, MonitorDown
+  Download, Upload, MonitorDown, Pencil, Plus, RotateCcw
 } from 'lucide-vue-next'
 import { canInstall, isInstalled, promptInstall } from '../services/install'
+import { formatDecimal } from '../services/decimal'
 
 const store = useEditorStore()
 const backupsOpen = ref(false)

@@ -5,11 +5,14 @@ import {
 } from '../services/db'
 import {
   requestPersistentStorage, acquireTabLock, ensureDailyBackup, listBackupsInfo,
-  getBackupData, getLastExport
+  getBackupData, getLastExport, saveBackup
 } from '../services/storageSafety'
-import { confirmDialog, promptDialog, alertDialog } from '../services/dialog'
+import { confirmDialog, alertDialog } from '../services/dialog'
 import { GEOMETRY_TYPES, calculateAnalyticalTotal } from '../services/geometryCatalog'
 import { computeComposite, compositeKey } from '../services/csgClient'
+
+// Factor de captura inicial de un buque nuevo (kg/m³)
+export const DENSIDAD_POR_DEFECTO = 800
 
 const HISTORY_LIMIT = 50
 // Las ediciones continuas se agrupan en un solo paso al quedar quietas este tiempo
@@ -59,10 +62,8 @@ export const useEditorStore = defineStore('editor', {
     historyIndex: -1,
     historyPending: false, // hay una edición continua todavía sin registrar
 
-    // Modo modal / diálogos
-    isProjectModalOpen: false,
-    isExportModalOpen: false,
-    isReportModalOpen: false
+    // Formulario de buque o pozo abierto: { tipo: 'buque'|'pozo', id: number|null }
+    recordForm: null
   }),
 
   getters: {
@@ -90,9 +91,12 @@ export const useEditorStore = defineStore('editor', {
       }
       return calculateAnalyticalTotal(state.bloques)
     },
-    capturaEstimadaKg(state) {
-      const densidad = state.selectedPozo ? (state.selectedPozo.densidad_estiba || 800) : 800
-      return this.volumenTotal * densidad
+    // Factor de captura (kg/m³): es propio de cada buque
+    densidadEstiba() {
+      return this.selectedBuque?.densidad_estiba || DENSIDAD_POR_DEFECTO
+    },
+    capturaEstimadaKg() {
+      return this.volumenTotal * this.densidadEstiba
     },
     capturaEstimadaToneladas() {
       return this.capturaEstimadaKg / 1000
@@ -149,8 +153,7 @@ export const useEditorStore = defineStore('editor', {
       } else {
         this.selectedBuqueId = null
         this.pozos = []
-        this.selectedPozoId = null
-        this.bloques = []
+        this.clearPozoSelection()
       }
     },
 
@@ -284,9 +287,16 @@ export const useEditorStore = defineStore('editor', {
       if (this.pozos.length > 0) {
         await this.selectPozo(this.pozos[0].id)
       } else {
-        this.selectedPozoId = null
-        this.bloques = []
+        this.clearPozoSelection()
       }
+    },
+
+    clearPozoSelection() {
+      this.selectedPozoId = null
+      this.selectedBlockId = null
+      this.bloques = []
+      this.resetHistory()
+      this.updateVolumenReal() // sin piezas: no dejar el volumen del pozo anterior
     },
 
     async loadPozos(buqueId) {
@@ -465,29 +475,110 @@ export const useEditorStore = defineStore('editor', {
       this.addBlockFromPalette('caja', 'UNION')
     },
 
-    async createNewPozo() {
-      if (!this.dbReady || !this.selectedBuqueId) return
-      const nombre = await promptDialog({
-        title: 'Nuevo pozo',
-        message: 'Nombre del pozo (por ejemplo: Pozo N° 2 Estribor).',
-        defaultValue: `Pozo N° ${this.pozos.length + 1}`,
-        confirmText: 'Crear pozo'
-      })
-      if (!nombre) return
+    // --- Buques y pozos (alta, edición y baja) ---
 
+    openRecordForm(tipo, id = null) {
+      if (!this.dbReady) return
+      if (tipo === 'pozo' && !this.selectedBuqueId) return
+      this.recordForm = { tipo, id }
+    },
+
+    closeRecordForm() {
+      this.recordForm = null
+    },
+
+    /** Crea o actualiza según `id`. Un buque nuevo nace con su primer pozo. */
+    async saveBuque(id, { nombre, densidad_estiba }) {
+      // matricula y armador son columnas opcionales que la app ya no usa: no se tocan
+      const valores = [nombre.trim(), densidad_estiba]
       await this.flushPendingSave()
-      const { lastInsertRowid: nuevoId } = await run(
-        "INSERT INTO pozos (buque_id, nombre, volumen_total, densidad_estiba, notas) VALUES (?, ?, 0, 800, '')",
-        [this.selectedBuqueId, nombre]
+      if (id) {
+        await run('UPDATE buques SET nombre = ?, densidad_estiba = ? WHERE id = ?', [...valores, id])
+        await this.loadBuques()
+        return
+      }
+      const { lastInsertRowid } = await run(
+        'INSERT INTO buques (nombre, densidad_estiba) VALUES (?, ?)', valores)
+      await this.loadBuques()
+      await this.selectBuque(lastInsertRowid)
+      await this.createPozo({ nombre: 'Pozo N° 1', notas: '' })
+    },
+
+    async createPozo({ nombre, notas }) {
+      await this.flushPendingSave()
+      const { lastInsertRowid } = await run(
+        "INSERT INTO pozos (buque_id, nombre, volumen_total, notas) VALUES (?, ?, 0, ?)",
+        [this.selectedBuqueId, nombre.trim(), notas.trim()]
       )
       await this.loadPozos(this.selectedBuqueId)
-      const nuevo = this.pozos.find(p => p.id === nuevoId)
-      if (nuevo) {
-        await this.selectPozo(nuevo.id)
-        this.addBlockFromPalette('caja', 'UNION')
-        // El pozo nace con su caja base: que deshacer no lo deje vacío
-        this.resetHistory()
-      }
+      await this.selectPozo(lastInsertRowid)
+      this.addBlockFromPalette('caja', 'UNION')
+      // El pozo nace con su caja base: que deshacer no lo deje vacío
+      this.resetHistory()
+    },
+
+    async savePozo(id, { nombre, notas }) {
+      if (!id) return this.createPozo({ nombre, notas })
+      await run('UPDATE pozos SET nombre = ?, notas = ? WHERE id = ?', [nombre.trim(), notas.trim(), id])
+      await this.loadPozos(this.selectedBuqueId)
+    },
+
+    /** Elimina un buque con sus pozos y piezas (con confirmación y copia previa). */
+    async deleteBuque(id) {
+      const buque = this.buques.find(b => b.id === id)
+      if (!buque) return false
+      const [{ pozos, piezas }] = await query(`
+        SELECT COUNT(DISTINCT p.id) AS pozos, COUNT(b.id) AS piezas
+        FROM pozos p LEFT JOIN bloques b ON b.pozo_id = p.id WHERE p.buque_id = ?`, [id])
+      const ok = await confirmDialog({
+        title: 'Eliminar buque',
+        message: `¿Eliminar "${buque.nombre}"?\n\nSe borrarán también sus pozos (${pozos}) y piezas (${piezas}). ` +
+          'Antes se guarda una copia automática de la base.',
+        confirmText: 'Eliminar buque',
+        danger: true
+      })
+      if (!ok) return false
+
+      await this.backupBeforeDelete(`Antes de eliminar el buque "${buque.nombre}"`)
+      await batch([
+        { sql: 'DELETE FROM bloques WHERE pozo_id IN (SELECT id FROM pozos WHERE buque_id = ?)', params: [id] },
+        { sql: 'DELETE FROM pozos WHERE buque_id = ?', params: [id] },
+        { sql: 'DELETE FROM buques WHERE id = ?', params: [id] }
+      ])
+      await this.reloadFromDb()
+      return true
+    },
+
+    /** Elimina un pozo con sus piezas (con confirmación y copia previa). */
+    async deletePozo(id) {
+      const pozo = this.pozos.find(p => p.id === id)
+      if (!pozo) return false
+      const [{ piezas }] = await query('SELECT COUNT(*) AS piezas FROM bloques WHERE pozo_id = ?', [id])
+      const ok = await confirmDialog({
+        title: 'Eliminar pozo',
+        message: `¿Eliminar "${pozo.nombre}"?\n\nSe borrarán también sus piezas (${piezas}). ` +
+          'Antes se guarda una copia automática de la base.',
+        confirmText: 'Eliminar pozo',
+        danger: true
+      })
+      if (!ok) return false
+
+      await this.backupBeforeDelete(`Antes de eliminar el pozo "${pozo.nombre}"`)
+      await batch([
+        { sql: 'DELETE FROM bloques WHERE pozo_id = ?', params: [id] },
+        { sql: 'DELETE FROM pozos WHERE id = ?', params: [id] }
+      ])
+      await this.loadPozos(this.selectedBuqueId)
+      if (this.pozos.length > 0) await this.selectPozo(this.pozos[0].id)
+      else this.clearPozoSelection()
+      return true
+    },
+
+    /** El borrado no entra en deshacer: se guarda una copia para poder volver atrás. */
+    async backupBeforeDelete(motivo) {
+      await this.flushPendingSave()
+      await saveBackup(await exportDatabaseBytes(), motivo)
+      await this.refreshBackupInfo()
     },
 
     /**

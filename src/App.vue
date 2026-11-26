@@ -63,12 +63,29 @@
         <!-- Visor 3D Central -->
         <main class="flex-1 relative h-full">
           <Viewport3D />
+          <!-- Sin pozo no hay dónde modelar: explicar cómo seguir -->
+          <div v-if="!store.selectedPozoId" class="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/90 p-6 text-center">
+            <div class="space-y-3 max-w-xs">
+              <p class="text-sm text-slate-300">
+                {{ store.selectedBuqueId ? 'Este buque todavía no tiene pozos.' : 'Todavía no hay ningún buque cargado.' }}
+              </p>
+              <button
+                @click="store.openRecordForm(store.selectedBuqueId ? 'pozo' : 'buque')"
+                class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+              >
+                {{ store.selectedBuqueId ? 'Crear un pozo' : 'Crear un buque' }}
+              </button>
+            </div>
+          </div>
         </main>
 
         <!-- Inspector Derecho de Propiedades -->
         <PropertiesPanel />
       </div>
     </template>
+
+    <!-- Alta y edición de buques y pozos -->
+    <RecordForm />
 
     <!-- Diálogos de confirmación y avisos -->
     <AppDialog />
@@ -83,6 +100,7 @@ import BlockCatalog from './components/BlockCatalog.vue'
 import Viewport3D from './components/Viewport3D.vue'
 import PropertiesPanel from './components/PropertiesPanel.vue'
 import AppDialog from './components/AppDialog.vue'
+import RecordForm from './components/RecordForm.vue'
 
 const store = useEditorStore()
 

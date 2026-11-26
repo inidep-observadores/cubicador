@@ -51,8 +51,9 @@ El esquema se define en `src/services/schema.js`. Las claves foráneas se activa
 CREATE TABLE IF NOT EXISTS buques (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
-    matricula TEXT,
-    armador TEXT,
+    matricula TEXT,  -- opcional, sin uso en la interfaz
+    armador TEXT,    -- opcional, sin uso en la interfaz
+    densidad_estiba REAL DEFAULT 800.0, -- factor de captura del buque (kg/m³)
     creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -62,7 +63,7 @@ CREATE TABLE IF NOT EXISTS pozos (
     buque_id INTEGER NOT NULL,
     nombre TEXT NOT NULL,
     volumen_total REAL DEFAULT 0.0,   -- último volumen calculado (m³)
-    densidad_estiba REAL DEFAULT 800.0, -- kg/m³
+    densidad_estiba REAL DEFAULT 800.0, -- sin uso desde v2 (ver buques)
     notas TEXT,
     FOREIGN KEY (buque_id) REFERENCES buques (id) ON DELETE CASCADE
 );
@@ -93,6 +94,7 @@ CREATE TABLE IF NOT EXISTS bloques (
 - La versión del esquema se guarda en `PRAGMA user_version` (`src/services/migrations.js`). Las bases anteriores a este mecanismo tienen versión 0.
 - Al abrir o importar una base se valida que tenga las tablas y columnas de la aplicación, se guarda una copia y se aplican las migraciones pendientes dentro de una transacción.
 - **v1:** los trapezoides pasaron a tener el largo sobre X (se compensa su rotación) y cada pozo se apoya en `y = 0` moviendo todas sus piezas juntas, sin cambiar el volumen.
+- **v2:** el factor de captura pasa a ser del buque; se toma el que tenía su primer pozo.
 - Una base de una versión más nueva de la aplicación se rechaza, para no dañarla.
 
 ---
@@ -148,6 +150,7 @@ cubicador/
 │   ├── components/
 │   │   ├── AppDialog.vue        # Diálogos de confirmación y avisos
 │   │   ├── BlockCatalog.vue     # Paleta lateral de las 10 figuras navales
+│   │   ├── RecordForm.vue       # Alta, edición y baja de buques y pozos
 │   │   ├── PropertiesPanel.vue  # Inspector de parámetros, cotas y componentes
 │   │   ├── Toolbar.vue          # Volumen, captura, modos, respaldos e instalación
 │   │   └── Viewport3D.vue       # Escenario Three.js, cámaras y gizmos

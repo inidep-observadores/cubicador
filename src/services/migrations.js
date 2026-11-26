@@ -6,7 +6,7 @@ import { getBlockBounds } from './csgService.js'
  * La versión se guarda en `PRAGMA user_version`; las bases anteriores a este
  * mecanismo tienen versión 0.
  */
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 // Figuras cuya malla se giró 90° en planta en la versión 1 (antes el largo iba sobre Z)
 const FIGURAS_GIRADAS_V1 = ['trapezoide', 'trapezoide_conico_1', 'trapezoide_conico_2']
@@ -70,6 +70,7 @@ export function migrateDatabase(db) {
   db.run('BEGIN')
   try {
     if (version < 1) migrarAV1(db)
+    if (version < 2) migrarAV2(db)
     setSchemaVersion(db)
     db.run('COMMIT')
   } catch (err) {
@@ -77,6 +78,24 @@ export function migrateDatabase(db) {
     throw err
   }
   return true
+}
+
+/**
+ * V2: el factor de captura pasa a ser del buque. Se toma el del primer pozo de
+ * cada buque (la columna de los pozos queda sin uso).
+ */
+function migrarAV2(db) {
+  const columnas = db.exec('PRAGMA table_info(buques)')[0].values.map(r => r[1])
+  if (columnas.includes('densidad_estiba')) return
+
+  db.run('ALTER TABLE buques ADD COLUMN densidad_estiba REAL DEFAULT 800.0')
+  db.run(`
+    UPDATE buques SET densidad_estiba = COALESCE(
+      (SELECT p.densidad_estiba FROM pozos p
+        WHERE p.buque_id = buques.id AND p.densidad_estiba > 0
+        ORDER BY p.id LIMIT 1),
+      800.0)
+  `)
 }
 
 function leerBloques(db) {

@@ -132,3 +132,18 @@ test('motor: una base exportada se vuelve a abrir con los mismos datos', () => {
   assert.equal(JSON.stringify(bloques(copia, 1)), JSON.stringify(bloques(db, 1)))
   assert.equal(getSchemaVersion(copia), SCHEMA_VERSION)
 })
+
+test('migración v2: el factor de captura pasa del pozo al buque', () => {
+  const db = new SQL.Database()
+  // Esquema de la versión 1: el buque no tenía factor
+  db.run(`CREATE TABLE buques (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, matricula TEXT, armador TEXT);
+    CREATE TABLE pozos (id INTEGER PRIMARY KEY AUTOINCREMENT, buque_id INTEGER NOT NULL, nombre TEXT NOT NULL, volumen_total REAL, densidad_estiba REAL DEFAULT 800.0, notas TEXT);
+    CREATE TABLE bloques (${COLS.split(', ').join(' REAL, ')} REAL);
+    INSERT INTO buques (id, nombre) VALUES (1, 'Con pozos'), (2, 'Sin pozos');
+    INSERT INTO pozos (id, buque_id, nombre, densidad_estiba) VALUES (1, 1, 'A', 920), (2, 1, 'B', 700);
+    PRAGMA user_version = 1`)
+  assert.equal(migrateDatabase(db), true)
+  const factores = db.exec('SELECT densidad_estiba FROM buques ORDER BY id')[0].values.map(r => r[0])
+  assert.deepEqual(factores, [920, 800])
+  assert.equal(getSchemaVersion(db), SCHEMA_VERSION)
+})

@@ -73,6 +73,22 @@ En la barra de herramientas superior se puede conmutar entre:
 
 ---
 
+## Buques y Pozos
+
+En la barra superior, junto a cada desplegable:
+
+| Botón | Acción |
+| :--- | :--- |
+| ✎ | Editar el buque o pozo seleccionado. Desde ahí también se **elimina**. |
+| + | Crear un buque o un pozo. Un buque nuevo incluye su "Pozo N° 1"; un pozo nuevo, una caja base. |
+| ↺ | Reiniciar el pozo, dejándolo con una caja base (se puede deshacer). |
+
+- **Factor de captura (t/m³):** se carga en cada buque y vale para todos sus pozos. También se abre haciendo clic en "Factor" debajo de la capacidad de captura.
+- **Capacidad de captura estimada** = volumen del pozo × factor del buque.
+- **Eliminar** pide confirmación, indica cuántos pozos y piezas se borran y guarda antes una copia automática (se restaura desde el menú de respaldos). El borrado no se deshace con `Ctrl+Z`.
+
+---
+
 ## 6. Volumen Informado
 
 La barra superior muestra el volumen del pozo con una etiqueta que indica de dónde sale:
