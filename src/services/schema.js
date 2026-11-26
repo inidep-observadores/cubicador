@@ -57,22 +57,14 @@ export function initTables(db) {
 
 export function seedInitialData(db) {
   db.run(`
-    INSERT INTO buques (id, nombre, matricula, armador, densidad_estiba) 
-    VALUES (1, 'B/P Atlántico Austral', '01842-M', 'Pesquera del Sur S.A.', 850.0);
+    INSERT INTO buques (id, nombre, densidad_estiba)
+    VALUES (1, 'Imaginario I', 850.0);
 
-    INSERT INTO pozos (id, buque_id, nombre, volumen_total, densidad_estiba, notas)
-    VALUES (1, 1, 'Pozo N° 1 (Proa Babor)', 84.5, 850.0, 'Pozo principal con rampa de descarga y columna de refrigeración');
+    INSERT INTO pozos (id, buque_id, nombre, volumen_total, notas)
+    VALUES (1, 1, 'Pozo 1 (Popa)', 90.0, '');
 
-    -- 1. Prisma principal (Caja)
+    -- Pozo de ejemplo: solo el cuerpo principal
     INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion, largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
     VALUES (1, 1, 1, 'Cuerpo Principal Pozo', 'caja', 'UNION', 6.0, 5.0, 3.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 90.0);
-
-    -- 2. Rampa de proa (Cuña irregular típica de pozo)
-    INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion, largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
-    VALUES (2, 1, 2, 'Rampa de Fondo Pozo', 'cuna_irregular', 'UNION', 4.0, 5.0, 1.5, 5.0, 3.0, 0, 0, 5.0, 0, 0, 0, 0, 0, 11.0);
-
-    -- 3. Columna estructural a restar (Sustracción)
-    INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion, largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
-    VALUES (3, 1, 3, 'Columna / Tubería de Paso', 'caja', 'SUBSTRACCION', 0.8, 0.8, 3.2, 0, 0, 0, 0, 1.5, 0, 1.5, 0, 0, 0, 2.05);
   `)
 }

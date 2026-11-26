@@ -76,16 +76,13 @@ export const useEditorStore = defineStore('editor', {
     selectedBlock(state) {
       return state.bloques.find(b => b.id === state.selectedBlockId) || null
     },
-    volumenNominal(state) {
-      return calculateAnalyticalTotal(state.bloques)
-    },
     // true cuando el volumen informado sale del sólido 3D (intersecciones reales)
     volumenEsReal(state) {
       return state.volumenMallaCSG !== null
     },
     volumenTotal(state) {
       // Prioridad: volumen real calculado por CSG (puede ser 0 de forma legítima).
-      // Si el cálculo 3D no es confiable, se informa la suma nominal y la UI lo advierte.
+      // Si el cálculo 3D no es confiable, se informa el valor por fórmulas y la UI avisa que es aproximado.
       if (state.volumenMallaCSG !== null) {
         return state.volumenMallaCSG
       }

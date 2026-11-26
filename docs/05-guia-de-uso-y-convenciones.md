@@ -91,11 +91,11 @@ En la barra superior, junto a cada desplegable:
 
 ## 6. Volumen Informado
 
-La barra superior muestra el volumen del pozo con una etiqueta que indica de dónde sale:
+La barra superior muestra el volumen del sólido que resulta de unir y cortar las piezas según su ubicación: lo que se superpone cuenta una sola vez y de cada corte se descuenta solo la parte que está dentro del pozo.
 
-- **Real 3D:** volumen del sólido booleano, considerando solapamientos y recortes reales. Debajo se indica la suma nominal de las piezas si difiere.
-- **Calculando…:** el cálculo 3D está en curso; mientras tanto se muestra la suma nominal.
-- **⚠ Nominal:** el cálculo 3D falló (la causa se ve al pasar el mouse). Se muestra la suma nominal, que no considera solapamientos: hay que revisar las piezas.
+- **Real 3D:** estado normal.
+- **Calculando…:** el cálculo está en curso.
+- **⚠ Aproximado:** el cálculo 3D falló (la causa se ve al pasar el mouse). El valor sale de sumar y restar las fórmulas de las piezas, sin considerar su ubicación: hay que revisar las piezas antes de usarlo.
 
 ---
 

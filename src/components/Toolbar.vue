@@ -97,8 +97,8 @@
           <span
             v-else
             class="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40"
-            :title="store.csgError + '. Se muestra la suma nominal de las piezas, sin considerar solapamientos ni recortes.'"
-          >⚠ Nominal</span>
+            :title="store.csgError + '. El valor es aproximado: no considera solapamientos ni recortes.'"
+          >⚠ Aproximado</span>
         </div>
         <div
           class="text-xl font-extrabold font-mono flex items-baseline justify-center gap-1 transition-opacity"
@@ -111,17 +111,8 @@
           <span>{{ store.volumenTotal.toFixed(2) }}</span>
           <span class="text-xs font-normal text-slate-400">m³</span>
         </div>
-        <div v-if="volumeState === 'calculando'" class="text-[9px] text-slate-400 font-mono">
-          Suma nominal, calculando 3D…
-        </div>
-        <div v-else-if="volumeState === 'error'" class="text-[9px] text-amber-400 font-mono max-w-[180px] truncate" :title="store.csgError">
+        <div v-if="volumeState === 'error'" class="text-[9px] text-amber-400 font-mono max-w-[180px] truncate" :title="store.csgError">
           Falló el cálculo 3D: revisar piezas
-        </div>
-        <div v-else-if="Math.abs(store.volumenNominal - store.volumenTotal) > 0.05" class="text-[9px] text-amber-400/90 font-mono flex items-center justify-center gap-1" :title="'Suma nominal de piezas: ' + store.volumenNominal.toFixed(2) + ' m³ (sin considerar intersección espacial)'">
-          <span>Nominal: {{ store.volumenNominal.toFixed(2) }} m³</span>
-        </div>
-        <div v-else class="text-[9px] text-emerald-400/80 font-mono flex items-center justify-center gap-1">
-          <span>✓ Sin solapamientos</span>
         </div>
       </div>
 

@@ -134,7 +134,7 @@ El motor booleano puede tardar cientos de milisegundos con muchas piezas, así q
 - El worker devuelve la geometría en coordenadas del mundo, con transferencia de buffers.
 - Si el navegador no admite workers de módulo, el cálculo se hace en el hilo principal.
 
-Mientras no hay resultado, la barra superior muestra **"Calculando…"**; si el cálculo falla, muestra **"⚠ Nominal"** con la causa.
+Mientras no hay resultado, la barra superior muestra **"Calculando…"**; si el cálculo falla, muestra **"⚠ Aproximado"** con la causa.
 
 ---
 

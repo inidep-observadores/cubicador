@@ -79,4 +79,4 @@ Esto introducía dos errores críticos:
 1. Si una figura sustractiva flotaba en el aire o penetraba solo $5\text{ cm}$, le restaba el 100% de su volumen a la bodega.
 2. Si dos piezas aditivas se solapaban, sumaba el 100% de ambas duplicando la zona compartida.
 
-**Solución aplicada:** El valor oficial de **Volumen del Pozo** y la **Capacidad de Captura (Ton)** ahora toman reactivamente el **Volumen Real 3D** computado tras resolver las intersecciones booleanas en el espacio. Si existen piezas en el aire o solapadas, la barra superior muestra el valor real y advierte con una etiqueta secundaria el valor nominal ciego.
+**Solución aplicada:** El valor oficial de **Volumen del Pozo** y la **Capacidad de Captura (Ton)** ahora toman reactivamente el **Volumen Real 3D** computado tras resolver las intersecciones booleanas en el espacio. La barra superior muestra únicamente ese valor real, para no confundir al usuario.

@@ -31,7 +31,7 @@ Sistema Web Progresivo (PWA) Offline-First para el modelado tridimensional inter
    - Modos de edición vs. Vista previa.
    - Snap magnético automático y ajuste fino manual al centímetro.
    - Atajos de teclado, deshacer y validación de campos.
-   - Volumen informado (Real 3D, Calculando, Nominal).
+   - Volumen informado (Real 3D, Calculando, Aproximado).
    - Respaldos, copias automáticas, importación e instalación de la app.
 
 ---
