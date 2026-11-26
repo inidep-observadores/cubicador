@@ -10,6 +10,7 @@ import {
 import { confirmDialog, alertDialog } from '../services/dialog'
 import { GEOMETRY_TYPES, calculateAnalyticalTotal } from '../services/geometryCatalog'
 import { computeComposite, compositeKey } from '../services/csgClient'
+import { mirrorBlock as espejarPieza } from '../services/mirror'
 
 // Factor de captura inicial de un buque nuevo (kg/m³)
 export const DENSIDAD_POR_DEFECTO = 800
@@ -466,6 +467,20 @@ export const useEditorStore = defineStore('editor', {
       if (!b) return
       this.flushPendingHistory() // que una edición previa quede como paso aparte
       b.fijada = !b.fijada
+      this.pushHistoryState()
+      this.saveBloquesToDb()
+    },
+
+    /** Espeja la pieza sobre un eje de la bodega, en su lugar. Entra en deshacer. */
+    mirrorBlock(blockId, axis) {
+      const b = this.bloques.find(x => x.id === blockId)
+      if (!b || b.fijada) return
+      this.flushPendingHistory()
+      const espejada = espejarPieza(b, axis)
+      for (const key of ['rot_x', 'rot_y', 'rot_z', 'pos_x', 'pos_y', 'pos_z', 'largo', 'ancho']) {
+        if (key in espejada) b[key] = espejada[key]
+      }
+      b.volumen_individual = GEOMETRY_TYPES[b.tipo_figura].calculateVolume(b)
       this.pushHistoryState()
       this.saveBloquesToDb()
     },

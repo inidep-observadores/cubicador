@@ -14,6 +14,7 @@
     "@sqlite.org/sqlite-wasm": "^3.54.1-build1",
     "idb-keyval": "^6.2.1",
     "lucide-vue-next": "^0.475.0",
+    "marked": "^18.3.0",
     "pinia": "^3.0.1",
     "three": "^0.174.0",
     "three-csg-ts": "^3.2.0",

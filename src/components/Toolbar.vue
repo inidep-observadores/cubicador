@@ -188,6 +188,17 @@
         <span class="hidden 2xl:inline">Instalar app</span>
       </button>
 
+      <!-- Manual de uso -->
+      <button
+        @click="openManual()"
+        title="Manual de uso (F1)"
+        aria-label="Manual de uso"
+        class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-2.5 py-1.5 rounded-lg text-xs font-medium transition"
+      >
+        <BookOpen class="w-4 h-4 text-sky-400" />
+        <span class="hidden 2xl:inline">Manual</span>
+      </button>
+
       <!-- Respaldo a archivo y copias automáticas -->
       <div class="relative flex items-stretch">
         <button
@@ -230,8 +241,9 @@
 import { ref, computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import {
-  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, History, MonitorDown, Pencil, Plus, RotateCcw
+  Ship, Undo2, Redo2, Box, Eye, Layers, Ruler, Database, History, MonitorDown, Pencil, Plus, RotateCcw, BookOpen
 } from 'lucide-vue-next'
+import { openManual } from '../services/layout'
 import { canInstall, isInstalled, promptInstall } from '../services/install'
 import { formatDecimal } from '../services/decimal'
 import { layout } from '../services/layout'

@@ -33,6 +33,9 @@ Sistema Web Progresivo (PWA) Offline-First para el modelado tridimensional inter
    - Atajos de teclado, deshacer y validación de campos.
    - Volumen informado (estados Calculando y Aproximado).
    - Respaldos, copias automáticas, importación e instalación de la app.
+6. [06. Manual de Usuario](./06-manual-de-usuario.md)
+   - Guía paso a paso para usuarios sin experiencia en diseño 3D, con un ejemplo completo.
+   - Es el mismo texto que se lee dentro de la app (botón **Manual**, **Más → Manual de uso** o tecla **F1**): al editar este archivo se actualiza también la ayuda de la app.
 
 ---
 

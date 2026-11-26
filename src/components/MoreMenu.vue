@@ -34,6 +34,13 @@
     <section class="space-y-2">
       <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Aplicación</h3>
       <button
+        @click="closePanel(); openManual()"
+        class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg py-2.5 font-semibold transition"
+      >
+        <BookOpen class="w-4 h-4 text-sky-400" />
+        Manual de uso
+      </button>
+      <button
         v-if="canInstall && !isInstalled"
         @click="promptInstall()"
         class="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-500 text-white rounded-lg py-2.5 font-semibold transition"
@@ -47,10 +54,10 @@
 </template>
 
 <script setup>
-import { Box, Eye, Layers, Ruler, Magnet, MonitorDown } from 'lucide-vue-next'
+import { Box, Eye, Layers, Ruler, Magnet, MonitorDown, BookOpen } from 'lucide-vue-next'
 import { useEditorStore } from '../stores/editorStore'
 import { canInstall, isInstalled, promptInstall } from '../services/install'
-import { closePanel } from '../services/layout'
+import { closePanel, openManual } from '../services/layout'
 import BackupsPanel from './BackupsPanel.vue'
 import AppVersion from './AppVersion.vue'
 

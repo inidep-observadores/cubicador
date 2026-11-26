@@ -118,6 +118,7 @@
     <RecordForm />
 
     <!-- Diálogos de confirmación y avisos -->
+    <ManualDialog />
     <AppDialog />
   </div>
 </template>
@@ -137,6 +138,7 @@ import BlockCatalog from './components/BlockCatalog.vue'
 import Viewport3D from './components/Viewport3D.vue'
 import PropertiesPanel from './components/PropertiesPanel.vue'
 import AppDialog from './components/AppDialog.vue'
+import ManualDialog from './components/ManualDialog.vue'
 import RecordForm from './components/RecordForm.vue'
 
 const store = useEditorStore()

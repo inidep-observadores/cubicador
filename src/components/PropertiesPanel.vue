@@ -182,6 +182,24 @@
           </button>
         </div>
 
+        <!-- Espejo sobre un eje de la bodega -->
+        <div class="flex items-center gap-1.5 mb-2.5">
+          <span class="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 shrink-0">
+            <FlipHorizontal2 class="w-3 h-3" />
+            Espejo
+          </span>
+          <button
+            v-for="eje in EJES_ESPEJO"
+            :key="eje.axis"
+            @click="store.mirrorBlock(currentBlock.id, eje.axis)"
+            :title="'Espejar en ' + eje.nombre + ' (' + eje.detalle + ')'"
+            class="flex-1 flex items-center justify-center gap-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 py-1 rounded-lg text-xs font-mono transition"
+          >
+            <span class="font-bold" :class="MIRROR_COLOR[eje.axis]">{{ eje.label }}</span>
+            <span class="text-slate-300">{{ eje.nombre }}</span>
+          </button>
+        </div>
+
         <!-- Inputs numéricos en grados -->
         <div class="grid grid-cols-3 gap-2">
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
@@ -350,7 +368,10 @@ import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
 import DecimalInput from './DecimalInput.vue'
 import { layout } from '../services/layout'
-import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus, Eye, EyeOff, Pin } from 'lucide-vue-next'
+import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus, Eye, EyeOff, Pin, FlipHorizontal2 } from 'lucide-vue-next'
+import { EJES_ESPEJO } from '../services/mirror'
+
+const MIRROR_COLOR = { x: 'text-rose-400', y: 'text-emerald-400', z: 'text-sky-400' }
 
 const store = useEditorStore()
 

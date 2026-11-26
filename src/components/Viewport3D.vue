@@ -53,6 +53,15 @@
             <span class="text-slate-600">|</span>
             <span class="text-sky-400 font-bold">Z: Manga{{ layout.isWide ? ' (Babor/Estribor)' : '' }}</span>
           </div>
+
+          <button
+            @click="openManual()"
+            class="flex items-center gap-1 text-[11px] font-medium text-sky-400 hover:text-sky-300 transition"
+            :class="layout.isTouch ? 'py-1.5' : ''"
+          >
+            <BookOpen class="w-3.5 h-3.5" />
+            Manual de uso completo{{ layout.isTouch ? '' : ' (F1)' }}
+          </button>
         </div>
       </div>
     </div>
@@ -157,6 +166,20 @@
         </button>
       </div>
 
+      <!-- Espejo: abre la elección del eje -->
+      <button
+        @click="mirrorOpen = !mirrorOpen"
+        :class="[mirrorOpen ? 'text-sky-300 bg-sky-500/10 border-sky-500/40' : 'text-slate-400 hover:text-white border-transparent hover:border-slate-700', btnPad]"
+        title="Espejar la pieza seleccionada sobre un eje (Tecla M)"
+        aria-label="Espejo"
+        :aria-expanded="mirrorOpen"
+        aria-controls="viewport-mirror"
+        class="shrink-0 text-xs font-medium rounded-lg border transition flex items-center gap-1"
+      >
+        <FlipHorizontal2 class="w-3.5 h-3.5" />
+        <span v-if="layout.isWide">Espejo (M)</span>
+      </button>
+
       <!-- Alternar Imán / Snap -->
       <button
         @click="store.snapToGrid = !store.snapToGrid"
@@ -167,6 +190,39 @@
         class="shrink-0 rounded-lg border border-transparent hover:border-slate-700 transition"
       >
         <Magnet class="w-4 h-4" />
+      </button>
+    </div>
+
+    <!-- Espejo: elegir el eje -->
+    <div
+      v-if="mirrorOpen"
+      id="viewport-mirror"
+      class="absolute z-10 flex flex-wrap items-center gap-1.5 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-xl shadow-lg p-1.5 max-w-[calc(100%-1rem)]"
+      :class="layout.isCompact ? 'left-2 ' + (layout.isTouch ? 'bottom-16' : 'bottom-12') : 'left-4 bottom-16'"
+    >
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+        {{ mirrorBlocked || 'Espejar sobre' }}
+      </span>
+      <button
+        v-for="eje in EJES_ESPEJO"
+        :key="eje.axis"
+        @click="mirrorSelected(eje.axis)"
+        :disabled="!!mirrorBlocked"
+        :title="'Espejar en ' + eje.nombre + ' (' + eje.detalle + '). Tecla ' + eje.label"
+        class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-mono transition disabled:opacity-40 disabled:pointer-events-none"
+        :class="btnPad"
+      >
+        <span class="font-bold" :class="MIRROR_COLOR[eje.axis]">{{ eje.label }}</span>
+        <span class="text-slate-300">{{ eje.nombre }}</span>
+      </button>
+      <button
+        @click="mirrorOpen = false"
+        title="Cerrar"
+        aria-label="Cerrar Espejo"
+        class="text-slate-500 hover:text-white rounded transition"
+        :class="btnPad"
+      >
+        <X class="w-3.5 h-3.5" />
       </button>
     </div>
 
@@ -186,9 +242,10 @@ import { confirmDialog, dialogState } from '../services/dialog'
 import DecimalInput from './DecimalInput.vue'
 import { formatDecimal } from '../services/decimal'
 import ModelModeToggle from './ModelModeToggle.vue'
-import { layout } from '../services/layout'
-import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown } from 'lucide-vue-next'
+import { layout, openManual } from '../services/layout'
+import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown, FlipHorizontal2, X, BookOpen } from 'lucide-vue-next'
 import { getHandles, supportsStretch, dragDistance, resolveStretch } from '../services/stretch'
+import { EJES_ESPEJO } from '../services/mirror'
 
 const store = useEditorStore()
 const containerRef = ref(null)
@@ -227,6 +284,20 @@ const TAP_MAX_MS = 600
 let tapStart = null
 
 const selectedDef = computed(() => GEOMETRY_TYPES[store.selectedBlock?.tipo_figura] || null)
+
+// Espejo
+const mirrorOpen = ref(false)
+const MIRROR_COLOR = { x: 'text-rose-400', y: 'text-emerald-400', z: 'text-sky-400' }
+const mirrorBlocked = computed(() => {
+  if (store.modelMode !== 'edicion') return 'Solo en Edición'
+  if (!store.selectedBlock) return 'Seleccioná una pieza'
+  if (store.selectedBlock.fijada) return 'Pieza fijada'
+  return ''
+})
+function mirrorSelected(axis) {
+  if (mirrorBlocked.value) return
+  store.mirrorBlock(store.selectedBlock.id, axis)
+}
 
 let scene, camera, renderer, orbitControls, transformControls, resizeObserver
 const blockMeshGroup = new THREE.Group()
@@ -480,7 +551,7 @@ async function confirmDeleteBlock(bloque) {
 
 function onKeyDown(e) {
   // Con un diálogo abierto, el teclado es del diálogo
-  if (dialogState.open || store.recordForm) return
+  if (dialogState.open || store.recordForm || layout.manualOpen) return
   // Mientras se escribe en un campo, el teclado es del campo (incluido su propio Ctrl+Z)
   if (isEditable(e.target)) return
 
@@ -507,7 +578,15 @@ function onKeyDown(e) {
   } else if (e.key === ' ' || e.key === 'Spacebar') {
     e.preventDefault()
     toggleTransformMode()
+  } else if (e.key === 'm' || e.key === 'M') {
+    mirrorOpen.value = !mirrorOpen.value
+  } else if (mirrorOpen.value && ['x', 'y', 'z'].includes(e.key.toLowerCase())) {
+    mirrorSelected(e.key.toLowerCase())
   } else if (e.key === 'Escape') {
+    if (mirrorOpen.value) {
+      mirrorOpen.value = false
+      return
+    }
     store.transformMode = 'translate'
   } else if (e.key === 'Delete' || e.key === 'Del') {
     if (store.selectedBlock) confirmDeleteBlock(store.selectedBlock)

@@ -100,8 +100,8 @@ function add(key) {
   emit('added')
 }
 
-const categorias = ['Todas', 'Básicos', 'Pozos y Rampas', 'Conductos y Columnas', 'Especiales']
-const selectedCategory = ref('Todas')
+const categorias = ['Básicos', 'Todas', 'Pozos y Rampas', 'Conductos y Columnas', 'Especiales']
+const selectedCategory = ref('Básicos')
 
 const filteredFigures = computed(() => {
   if (selectedCategory.value === 'Todas') {

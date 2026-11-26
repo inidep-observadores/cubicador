@@ -24,7 +24,9 @@ export const layout = reactive({
   isTouch: false,
   isShort: false,
   // Panel abierto en modo compacto: 'catalogo' | 'componentes' | 'inspector' | 'menu' | null
-  panel: null
+  panel: null,
+  // Manual de uso abierto
+  manualOpen: false
 })
 
 for (const [key, query] of Object.entries(QUERIES)) {
@@ -47,4 +49,12 @@ export function togglePanel(name) {
 
 export function closePanel() {
   layout.panel = null
+}
+
+export function openManual() {
+  layout.manualOpen = true
+}
+
+export function closeManual() {
+  layout.manualOpen = false
 }
