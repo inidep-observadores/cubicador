@@ -28,7 +28,7 @@ Sistema Web Progresivo (PWA) Offline-First para el modelado tridimensional inter
 5. [05. Guía de Uso, Convenciones Náuticas y Controles](./05-guia-de-uso-y-convenciones.md)
    - Sistema de coordenadas y ejes navales (Eslora, Manga, Puntal, Proa, Popa, Babor, Estribor).
    - Vistas de cámara preconfiguradas y controles orbitales.
-   - Modos de edición vs. Pozo Booleano.
+   - Modos de edición vs. Vista previa.
    - Snap magnético automático y ajuste fino manual al centímetro.
    - Atajos de teclado, deshacer y validación de campos.
    - Volumen informado (Real 3D, Calculando, Nominal).

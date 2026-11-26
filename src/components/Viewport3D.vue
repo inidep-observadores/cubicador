@@ -3,38 +3,31 @@
     <!-- Canvas Three.js -->
     <canvas ref="canvasRef" class="w-full h-full block outline-none cursor-grab active:cursor-grabbing"></canvas>
 
-    <!-- Overlay de cotas en pantalla si hay bloque seleccionado -->
-    <div 
-      v-if="store.showDimensions && store.selectedBlock" 
-      class="absolute top-4 right-4 z-10 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-3 shadow-lg font-mono text-xs text-slate-300 pointer-events-none space-y-1"
+    <!-- Cotas del bloque seleccionado: editables, solo las medidas de su figura -->
+    <div
+      v-if="store.showDimensions && store.selectedBlock && selectedDef"
+      class="absolute top-4 right-4 z-20 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl p-3 shadow-lg font-mono text-xs text-slate-300 space-y-1"
     >
       <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400 font-sans mb-1">
         Cotas del Bloque Seleccionado
       </div>
-      <div class="flex items-center justify-between gap-4">
-        <span class="text-slate-400">Eslora (L):</span>
-        <span class="text-amber-300 font-bold">{{ store.selectedBlock.largo?.toFixed(2) }} m</span>
-      </div>
-      <div class="flex items-center justify-between gap-4">
-        <span class="text-slate-400">Puntal/Alto (H):</span>
-        <span class="text-amber-300 font-bold">{{ store.selectedBlock.alto?.toFixed(2) }} m</span>
-      </div>
-      <div v-if="store.selectedBlock.ancho" class="flex items-center justify-between gap-4">
-        <span class="text-slate-400">Manga/Ancho (W):</span>
-        <span class="text-amber-300 font-bold">{{ store.selectedBlock.ancho?.toFixed(2) }} m</span>
-      </div>
-      <div v-if="store.selectedBlock.base_a" class="flex items-center justify-between gap-4">
-        <span class="text-slate-400">Base A:</span>
-        <span class="text-sky-300 font-bold">{{ store.selectedBlock.base_a?.toFixed(2) }} m</span>
-      </div>
-      <div v-if="store.selectedBlock.base_b" class="flex items-center justify-between gap-4">
-        <span class="text-slate-400">Base B:</span>
-        <span class="text-sky-300 font-bold">{{ store.selectedBlock.base_b?.toFixed(2) }} m</span>
-      </div>
-      <div v-if="store.selectedBlock.diametro_d" class="flex items-center justify-between gap-4">
-        <span class="text-slate-400">Diámetro D:</span>
-        <span class="text-emerald-300 font-bold">{{ store.selectedBlock.diametro_d?.toFixed(2) }} m</span>
-      </div>
+      <label
+        v-for="param in selectedDef.params"
+        :key="store.selectedBlock.id + param.key"
+        class="flex items-center justify-between gap-3"
+      >
+        <span class="text-slate-400">{{ param.label }}:</span>
+        <span class="flex items-center gap-1">
+          <DecimalInput
+            :min="param.min"
+            :step="param.step"
+            :model-value="store.selectedBlock[param.key]"
+            @update:model-value="store.updateBlockProperty(store.selectedBlock.id, param.key, $event)"
+            class="w-16 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-right font-bold text-amber-300 focus:outline-none focus:border-sky-500"
+          />
+          <span class="text-slate-500">m</span>
+        </span>
+      </label>
     </div>
 
     <!-- Overlay de controles flotantes sobre el 3D -->
@@ -128,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
@@ -137,11 +130,14 @@ import { GEOMETRY_TYPES } from '../services/geometryCatalog'
 import { snapBlockToBounds } from '../services/csgService'
 import { computeComposite } from '../services/csgClient'
 import { confirmDialog, dialogState } from '../services/dialog'
+import DecimalInput from './DecimalInput.vue'
 import { Compass, Move3d, Magnet, RotateCw } from 'lucide-vue-next'
 
 const store = useEditorStore()
 const containerRef = ref(null)
 const canvasRef = ref(null)
+
+const selectedDef = computed(() => GEOMETRY_TYPES[store.selectedBlock?.tipo_figura] || null)
 
 let scene, camera, renderer, orbitControls, transformControls, resizeObserver
 const blockMeshGroup = new THREE.Group()
@@ -577,7 +573,7 @@ function renderBlocks() {
   requestRender()
 }
 
-/** Modo "Pozo Booleano": dibuja el sólido calculado en segundo plano. */
+/** Modo "Vista previa": dibuja el sólido calculado en segundo plano. */
 function renderComposite() {
   const token = ++csgRenderToken
   const viewMode = store.viewMode

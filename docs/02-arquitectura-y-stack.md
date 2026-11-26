@@ -127,7 +127,7 @@ La base vive en un **Web Worker** (`src/workers/dbWorker.js`) con el SQLite ofic
 
 El motor booleano puede tardar cientos de milisegundos con muchas piezas, así que corre en un **Web Worker** (`src/workers/csgWorker.js`) y la interfaz no se congela:
 
-- `src/services/csgClient.js` es el único punto de acceso. Guarda en caché los últimos resultados por forma de las piezas (el nombre no cuenta), de modo que el volumen y el modo "Pozo Booleano" comparten el mismo cálculo.
+- `src/services/csgClient.js` es el único punto de acceso. Guarda en caché los últimos resultados por forma de las piezas (el nombre no cuenta), de modo que el volumen y el modo "Vista previa" comparten el mismo cálculo.
 - Procesa un cálculo a la vez y, si llegan varios pedidos mientras tanto, solo el último.
 - El worker devuelve la geometría en coordenadas del mundo, con transferencia de buffers.
 - Si el navegador no admite workers de módulo, el cálculo se hace en el hilo principal.

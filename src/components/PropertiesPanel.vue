@@ -88,13 +88,11 @@
           >
             <label class="text-xs font-medium text-slate-300 flex-1">{{ param.label }}</label>
             <div class="flex items-center space-x-1.5">
-              <input 
-                type="number" 
-                :min="param.min || 0.05" 
+              <DecimalInput
+                :min="param.min ?? 0.05"
                 :step="param.step || 0.1"
-                :value="currentBlock[param.key]" 
-                @input="onNumberInput(param.key, $event, param.min ?? 0.05)"
-                @change="restoreIfInvalid(param.key, $event, param.min ?? 0.05)"
+                :model-value="currentBlock[param.key]"
+                @update:model-value="updateProp(param.key, $event)"
                 class="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-right text-sm text-sky-300 font-mono focus:outline-none focus:border-sky-500"
               />
               <span class="text-xs text-slate-500 font-mono w-4">m</span>
@@ -114,34 +112,28 @@
         <div class="grid grid-cols-3 gap-2">
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Eje X (Eslora)</span>
-            <input 
-              type="number" 
-              step="0.01" 
-              :value="currentBlock.pos_x" 
-              @input="onNumberInput('pos_x', $event)"
-              @change="restoreIfInvalid('pos_x', $event)"
+            <DecimalInput
+              :step="0.01"
+              :model-value="currentBlock.pos_x"
+              @update:model-value="updateProp('pos_x', $event)"
               class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Eje Y (Puntal)</span>
-            <input 
-              type="number" 
-              step="0.01" 
-              :value="currentBlock.pos_y" 
-              @input="onNumberInput('pos_y', $event)"
-              @change="restoreIfInvalid('pos_y', $event)"
+            <DecimalInput
+              :step="0.01"
+              :model-value="currentBlock.pos_y"
+              @update:model-value="updateProp('pos_y', $event)"
               class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Eje Z (Manga)</span>
-            <input 
-              type="number" 
-              step="0.01" 
-              :value="currentBlock.pos_z" 
-              @input="onNumberInput('pos_z', $event)"
-              @change="restoreIfInvalid('pos_z', $event)"
+            <DecimalInput
+              :step="0.01"
+              :model-value="currentBlock.pos_z"
+              @update:model-value="updateProp('pos_z', $event)"
               class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono focus:border-sky-500 focus:outline-none"
             />
           </div>
@@ -189,12 +181,10 @@
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Giro X</span>
             <div class="flex items-center justify-center gap-0.5">
-              <input 
-                type="number" 
-                step="15" 
-                :value="getAngleDegrees('rot_x')" 
-                @input="onAngleInput('rot_x', $event)"
-                @change="restoreAngleIfInvalid('rot_x', $event)"
+              <DecimalInput
+                :step="15"
+                :model-value="getAngleDegrees('rot_x')"
+                @update:model-value="setAngleDegrees('rot_x', $event)"
                 class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
               />
               <span class="text-[10px] text-slate-500">°</span>
@@ -203,12 +193,10 @@
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Giro Y (Planta)</span>
             <div class="flex items-center justify-center gap-0.5">
-              <input 
-                type="number" 
-                step="15" 
-                :value="getAngleDegrees('rot_y')" 
-                @input="onAngleInput('rot_y', $event)"
-                @change="restoreAngleIfInvalid('rot_y', $event)"
+              <DecimalInput
+                :step="15"
+                :model-value="getAngleDegrees('rot_y')"
+                @update:model-value="setAngleDegrees('rot_y', $event)"
                 class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
               />
               <span class="text-[10px] text-slate-500">°</span>
@@ -217,12 +205,10 @@
           <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50 text-center">
             <span class="text-[10px] text-slate-400 font-mono block">Giro Z</span>
             <div class="flex items-center justify-center gap-0.5">
-              <input 
-                type="number" 
-                step="15" 
-                :value="getAngleDegrees('rot_z')" 
-                @input="onAngleInput('rot_z', $event)"
-                @change="restoreAngleIfInvalid('rot_z', $event)"
+              <DecimalInput
+                :step="15"
+                :model-value="getAngleDegrees('rot_z')"
+                @update:model-value="setAngleDegrees('rot_z', $event)"
                 class="w-full bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-center text-xs text-white font-mono"
               />
               <span class="text-[10px] text-slate-500">°</span>
@@ -298,7 +284,7 @@
 
       <p v-if="hiddenCount > 0" class="text-[10px] text-amber-400/90 mb-1.5">
         {{ hiddenCount === 1 ? '1 pieza oculta' : hiddenCount + ' piezas ocultas' }}:
-        {{ store.modelMode === 'solidoFinal' ? 'el Pozo Booleano muestra el sólido completo.' : 'igual cuentan en el volumen.' }}
+        {{ store.modelMode === 'solidoFinal' ? 'la Vista previa muestra el sólido completo.' : 'igual cuentan en el volumen.' }}
       </p>
 
       <div class="space-y-1">
@@ -338,6 +324,7 @@
 import { computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
+import DecimalInput from './DecimalInput.vue'
 import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus, Eye, EyeOff } from 'lucide-vue-next'
 
 const store = useEditorStore()
@@ -362,52 +349,10 @@ function updateProp(prop, val) {
   }
 }
 
-// --- Validación de campos numéricos ---
-// Mientras se escribe solo se aplican valores válidos; un valor vacío, no numérico
-// o menor al mínimo marca el campo en rojo y no toca la pieza. Al salir del campo
-// se restaura el último valor válido.
-const INVALID_CLASS = '!border-rose-500'
-
-function readNumber(event, min) {
-  const v = event.target.valueAsNumber
-  if (!Number.isFinite(v)) return null
-  if (min !== undefined && v < min) return null
-  return v
-}
-
-function markField(event, valid) {
-  event.target.classList.toggle(INVALID_CLASS, !valid)
-  event.target.title = valid ? '' : 'Valor inválido: no se aplicó'
-}
-
-function onNumberInput(prop, event, min) {
-  const v = readNumber(event, min)
-  markField(event, v !== null)
-  if (v !== null) updateProp(prop, v)
-}
-
-function restoreIfInvalid(prop, event, min) {
-  if (readNumber(event, min) === null && currentBlock.value) {
-    event.target.value = currentBlock.value[prop]
-  }
-  markField(event, true)
-}
-
-function onAngleInput(prop, event) {
-  const v = readNumber(event)
-  markField(event, v !== null)
-  if (v !== null) setAngleDegrees(prop, v)
-}
-
-function restoreAngleIfInvalid(prop, event) {
-  if (readNumber(event) === null) event.target.value = getAngleDegrees(prop)
-  markField(event, true)
-}
-
 function getAngleDegrees(prop) {
   if (!currentBlock.value) return 0
   const rad = currentBlock.value[prop] || 0
-  return Math.round((rad * 180) / Math.PI)
+  return Math.round(((rad * 180) / Math.PI) * 10000) / 10000
 }
 
 function setAngleDegrees(prop, deg) {

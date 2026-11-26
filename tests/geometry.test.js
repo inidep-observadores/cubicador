@@ -85,3 +85,16 @@ test('cuña irregular: ejemplo de la ficha da 4.923,75 m³', () => {
   const v = GEOMETRY_TYPES.cuna_irregular.calculateVolume({ base_a: 23.5, base_b: 13.5, largo: 45, alto: 13 })
   assert.ok(Math.abs(v - 4923.75) < 1e-9, `v = ${v}`)
 })
+
+test('decimales en español: acepta coma o punto y muestra coma', async () => {
+  const { parseDecimal, formatDecimal } = await import('../src/services/decimal.js')
+  assert.equal(parseDecimal('2,5'), 2.5)
+  assert.equal(parseDecimal('2.5'), 2.5)
+  assert.equal(parseDecimal('-0,25'), -0.25)
+  assert.equal(parseDecimal('3,'), 3)
+  assert.equal(parseDecimal(',5'), 0.5)
+  for (const malo of ['', '-', ',', '1.234,5', '2,5m', '1e3']) assert.equal(parseDecimal(malo), null, malo)
+  assert.equal(formatDecimal(2.5), '2,5')
+  assert.equal(formatDecimal(1.2500000000000002), '1,25')
+  assert.equal(formatDecimal(6), '6')
+})

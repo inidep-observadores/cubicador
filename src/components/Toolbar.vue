@@ -65,11 +65,11 @@
         <button 
           @click="store.modelMode = 'solidoFinal'"
           :class="store.modelMode === 'solidoFinal' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'"
-          title="Modo Pozo Booleano: ver sólido combinado con cortes reales en la malla"
+          title="Modo Vista previa: ver sólido combinado con cortes reales en la malla"
           class="px-2.5 py-1 text-xs font-semibold rounded-md transition flex items-center gap-1.5"
         >
           <Sparkles class="w-3.5 h-3.5 text-amber-300" />
-          <span>Pozo Booleano</span>
+          <span>Vista previa</span>
         </button>
       </div>
 

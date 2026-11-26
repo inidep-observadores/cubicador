@@ -6,7 +6,7 @@ import { computeCompositeData } from './csgCompute.js'
  *
  * - Corre en un Web Worker (con respaldo síncrono si no hay soporte).
  * - Guarda en caché los últimos resultados: el store (volumen) y el visor
- *   (malla del modo "Pozo Booleano") comparten el mismo cálculo.
+ *   (malla del modo "Vista previa") comparten el mismo cálculo.
  * - Hace un solo cálculo a la vez y, si llegan varios pedidos mientras tanto,
  *   procesa solo el último: los intermedios se resuelven como `superseded`.
  *

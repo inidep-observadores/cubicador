@@ -40,6 +40,8 @@ En la barra inferior flotante del visor 3D se dispone de 4 accesos rápidos que 
 - **`Ctrl+Z`:** Deshacer. **`Ctrl+Y`** o **`Ctrl+Shift+Z`:** Rehacer (`Cmd` en Mac). Todo se puede deshacer: medidas, posiciones, giros, nombres, agregar o borrar piezas. Las ediciones continuas (escribir una medida, arrastrar) cuentan como un solo paso.
 - **`Supr`:** Eliminar la pieza seleccionada (pide confirmación).
 - Mientras se escribe en un campo, los atajos no actúan y `Ctrl+Z` deshace dentro del campo.
+- Las medidas de la pieza seleccionada también se editan desde la ventana **"Cotas del bloque seleccionado"**, sobre el visor (`Enter` o `Esc` para salir del campo).
+- Los decimales se escriben con **coma** (también se acepta el punto). El punto del teclado numérico escribe la coma. Las flechas arriba y abajo suman o restan un paso.
 - Un valor vacío, no numérico o por debajo del mínimo marca el campo en rojo y no se aplica; al salir del campo vuelve el último valor válido.
 
 ---
@@ -62,8 +64,8 @@ El sistema ofrece dos modalidades complementarias de posicionamiento:
 En la barra de herramientas superior se puede conmutar entre:
 
 - **Modo Edición:** Permite ver y manipular cada bloque paramétrico de forma independiente, identificando uniones (azules) y sustracciones (rojas translúcidas).
-- **Modo Pozo Booleano:** Muestra el sólido único resultante de unir y cortar todas las piezas, con sus aristas técnicas. Se calcula en segundo plano.
-- **Ocultar piezas:** en "Componentes del Pozo", el ícono del ojo oculta o muestra cada pieza, y los botones "Mostrar todo" y "Ocultar todo" actúan sobre todas. Es solo visual: las piezas ocultas **siguen contando en el volumen**, no se aplica al modo Pozo Booleano y se restablece al recargar la app.
+- **Modo Vista previa:** Muestra el sólido único resultante de unir y cortar todas las piezas, con sus aristas técnicas. Se calcula en segundo plano.
+- **Ocultar piezas:** en "Componentes del Pozo", el ícono del ojo oculta o muestra cada pieza, y los botones "Mostrar todo" y "Ocultar todo" actúan sobre todas. Es solo visual: las piezas ocultas **siguen contando en el volumen**, no se aplica al modo Vista previa y se restablece al recargar la app.
 - **Sólido / Rayos X / Alambre:** 
   - *Sólido:* Superficie opaca con sombras.
   - *Rayos X:* Malla translúcida para visualizar cavidades y rampas internas ocultas.
