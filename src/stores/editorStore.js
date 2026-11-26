@@ -37,6 +37,9 @@ export const useEditorStore = defineStore('editor', {
     // Bloques del pozo actual
     bloques: [],
     selectedBlockId: null,
+    // Piezas ocultas en el visor. Es solo de visualización: no se guarda en la
+    // base ni en el historial, y no cambia el volumen
+    hiddenBlockIds: [],
 
     // Configuración de visualización 3D
     viewMode: 'solido', // 'solido' | 'rayosX' | 'alambrico'
@@ -137,6 +140,7 @@ export const useEditorStore = defineStore('editor', {
 
     async reloadFromDb() {
       this.selectedBlockId = null
+      this.hiddenBlockIds = [] // otra base: los ids pueden ser de otras piezas
       const [{ maxId }] = await query('SELECT COALESCE(MAX(id), 0) AS maxId FROM bloques')
       this._maxBlockId = Number(maxId) || 0
       await this.loadBuques()
@@ -365,7 +369,8 @@ export const useEditorStore = defineStore('editor', {
         rot_x: 0,
         rot_y: 0,
         rot_z: 0,
-        volumen_individual: 0
+        volumen_individual: 0,
+        ...def.rotacionInicial
       }
 
       nuevoBloque.volumen_individual = def.calculateVolume(nuevoBloque)
@@ -413,6 +418,23 @@ export const useEditorStore = defineStore('editor', {
       this.selectedBlockId = clon.id
       this.pushHistoryState()
       this.saveBloquesToDb()
+    },
+
+    // --- Visibilidad en el visor ---
+
+    toggleBlockVisibility(blockId) {
+      this.hiddenBlockIds = this.hiddenBlockIds.includes(blockId)
+        ? this.hiddenBlockIds.filter(id => id !== blockId)
+        : [...this.hiddenBlockIds, blockId]
+    },
+
+    showAllBlocks() {
+      const delPozo = new Set(this.bloques.map(b => b.id))
+      this.hiddenBlockIds = this.hiddenBlockIds.filter(id => !delPozo.has(id))
+    },
+
+    hideAllBlocks() {
+      this.hiddenBlockIds = [...new Set([...this.hiddenBlockIds, ...this.bloques.map(b => b.id)])]
     },
 
     toggleBlockOperation(blockId) {

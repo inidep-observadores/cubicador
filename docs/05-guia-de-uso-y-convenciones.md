@@ -63,6 +63,7 @@ En la barra de herramientas superior se puede conmutar entre:
 
 - **Modo Edición:** Permite ver y manipular cada bloque paramétrico de forma independiente, identificando uniones (azules) y sustracciones (rojas translúcidas).
 - **Modo Pozo Booleano:** Muestra el sólido único resultante de unir y cortar todas las piezas, con sus aristas técnicas. Se calcula en segundo plano.
+- **Ocultar piezas:** en "Componentes del Pozo", el ícono del ojo oculta o muestra cada pieza, y los botones "Mostrar todo" y "Ocultar todo" actúan sobre todas. Es solo visual: las piezas ocultas **siguen contando en el volumen**, no se aplica al modo Pozo Booleano y se restablece al recargar la app.
 - **Sólido / Rayos X / Alambre:** 
   - *Sólido:* Superficie opaca con sombras.
   - *Rayos X:* Malla translúcida para visualizar cavidades y rampas internas ocultas.

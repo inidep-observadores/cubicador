@@ -14,14 +14,14 @@ El módulo `src/services/geometryCatalog.js` define las 10 figuras canónicas de
 | :---: | :--- | :--- | :--- | :--- |
 | **1** | `caja` | Caja (Prisma Rectangular) | Básicos | $V = H \times L \times W$ |
 | **2** | `cuna_irregular` | Cuña Irregular (Forma Pozo) | Pozos y Rampas | $V = \frac{H \times L \times (A + 2B)}{6}$ |
-| **3** | `cuna_regular` | Cuña Regular (Rampa) | Pozos y Rampas | $V = \frac{1}{2} \times H \times L \times W$ |
+| **3** | `cuna_regular` | Cuña Regular (Rampa) | Básicos | $V = \frac{1}{2} \times H \times L \times W$ |
 | **4** | `trapezoide` | Trapezoide (Prisma Trapezoidal) | Pozos y Rampas | $V = \frac{A + B}{2} \times H \times L$ |
 | **5** | `trapezoide_conico_1` | Trapezoide Cónico (1) | Pozos y Rampas | $V = \frac{1}{4} \times (A + B + C + D) \times H \times L$ |
 | **6** | `trapezoide_conico_2` | Trapezoide Cónico (2) | Pozos y Rampas | $V = \frac{1}{4} \times (A + B + C) \times H \times L$ |
 | **7** | `cilindro` | Cilindro (Columna / Tubería) | Conductos y Columnas | $V = \pi \times \left(\frac{D}{2}\right)^2 \times H$ |
 | **8** | `tronco_cono` | Tronco de Cono | Conductos y Columnas | $V = \frac{\pi \times H}{12} \times (D^2 + D \cdot d + d^2)$ |
 | **9** | `elipsoide` | Cilindro Elíptico (Bolsa de Red) | Especiales | $V = \frac{\pi}{4} \times W \times H \times L$ |
-| **10** | `piramidal` | Piramidal / Cuña Esquinera | Especiales | $V = \frac{1}{6} \times H \times L \times W$ |
+| **10** | `piramidal` | Piramidal | Básicos | $V = \frac{1}{6} \times H \times L \times W$ |
 
 ---
 
@@ -37,6 +37,7 @@ Las fórmulas se validaron contra la ficha técnica original y su versión redib
 
 ### Convenciones de las mallas
 - El **largo** corre sobre el eje X (eslora).
+- La **cuña regular** se agrega girada 180° en planta, con el borde fino hacia proa (+X).
 - La base apoya en $y = 0$: `pos_y` es la cota del piso de la pieza.
 - Cilindros, troncos de cono y el cilindro elíptico usan 32 segmentos, con los radios ajustados para que el polígono conserve el área del círculo o de la elipse, y por lo tanto el volumen.
 

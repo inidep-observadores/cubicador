@@ -206,8 +206,10 @@ export const GEOMETRY_TYPES = {
   cuna_regular: {
     id: 'cuna_regular',
     nombre: 'Cuña Regular (Rampa)',
-    categoria: 'Pozos y Rampas',
+    categoria: 'Básicos',
     descripcion: 'V = ½ × (H × L × W). Rampa de acceso o pendiente longitudinal.',
+    // Giro con el que se agrega a la escena: borde fino hacia proa (+X)
+    rotacionInicial: { rot_y: Math.PI },
     formula: 'V = ½ × (H × L × W)',
     params: [
       { key: 'largo', label: 'Largo (L)', default: 5.0, min: 0.1, step: 0.1, unit: 'm' },
@@ -216,13 +218,14 @@ export const GEOMETRY_TYPES = {
     ],
     svgDiagram: `
       <svg viewBox="0 0 160 100" class="w-full h-20 stroke-sky-400 fill-sky-500/10 stroke-1 font-mono text-[9px]">
-        <path d="M 20 65 L 90 65 L 135 45 L 90 20 Z" />
-        <path d="M 90 65 L 90 20" />
-        <path d="M 135 45 L 135 15 L 90 20" />
-        <path d="M 20 65 L 90 20" />
-        <text x="50" y="77" class="fill-amber-300 stroke-none">L</text>
-        <text x="80" y="45" class="fill-amber-300 stroke-none">H</text>
-        <text x="115" y="60" class="fill-amber-300 stroke-none">W</text>
+        <path d="M 15 82 L 100 44 L 142 16 L 57 54 Z" />
+        <path d="M 15 82 L 100 82 L 100 44 Z" />
+        <path d="M 100 82 L 142 54 L 142 16 L 100 44 Z" />
+        <path d="M 108 77 L 108 39 M 117 71 L 117 33 M 125 65 L 125 27 M 134 59 L 134 22" class="opacity-50" />
+        <path d="M 57 54 L 142 54" stroke-dasharray="3,3" fill="none" />
+        <text x="55" y="93" class="fill-amber-300 stroke-none">L</text>
+        <text x="147" y="38" class="fill-amber-300 stroke-none">H</text>
+        <text x="125" y="80" class="fill-amber-300 stroke-none">W</text>
       </svg>
     `,
     calculateVolume(p) {
@@ -573,9 +576,9 @@ export const GEOMETRY_TYPES = {
   // 10. PIRAMIDAL / TETRAEDRO
   piramidal: {
     id: 'piramidal',
-    nombre: 'Piramidal / Cuña Esquinera',
-    categoria: 'Especiales',
-    descripcion: 'V = (W × L × H) / 6. Rincones de quilla o compensaciones triangulares.',
+    nombre: 'Piramidal',
+    categoria: 'Básicos',
+    descripcion: 'V = (W × L × H) / 6. Pirámide de base triangular: rincones de quilla o compensaciones.',
     formula: 'V = (W × L × H) / 6',
     params: [
       { key: 'largo', label: 'Largo (L)', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
@@ -584,12 +587,13 @@ export const GEOMETRY_TYPES = {
     ],
     svgDiagram: `
       <svg viewBox="0 0 160 100" class="w-full h-20 stroke-sky-400 fill-sky-500/10 stroke-1 font-mono text-[9px]">
-        <path d="M 25 75 L 120 75 L 70 20 Z" />
-        <path d="M 120 75 L 140 50 L 70 20" />
-        <path d="M 25 75 L 70 20" />
-        <text x="65" y="87" class="fill-amber-300 stroke-none">L</text>
-        <text x="75" y="16" class="fill-amber-300 stroke-none">H</text>
-        <text x="130" y="68" class="fill-amber-300 stroke-none">W</text>
+        <path d="M 20 74 L 105 74 L 105 18 Z" />
+        <path d="M 105 74 L 142 56 L 105 18 Z" />
+        <path d="M 112 71 L 112 29 M 119 67 L 119 40 M 126 64 L 126 48 M 133 60 L 133 54" class="opacity-50" />
+        <path d="M 20 74 L 142 56" stroke-dasharray="3,3" fill="none" />
+        <text x="60" y="86" class="fill-amber-300 stroke-none">L</text>
+        <text x="94" y="55" class="fill-amber-300 stroke-none">H</text>
+        <text x="128" y="76" class="fill-amber-300 stroke-none">W</text>
       </svg>
     `,
     calculateVolume(p) {

@@ -271,19 +271,55 @@
     </div>
 
     <!-- Lista inferior / Capas de piezas del pozo -->
-    <div class="border-t border-slate-800 bg-slate-950/90 p-3 max-h-48 overflow-y-auto">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center justify-between">
-        <span>Componentes del Pozo ({{ store.bloques.length }})</span>
+    <div class="border-t border-slate-800 bg-slate-950/90 p-3 max-h-56 overflow-y-auto">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+        Componentes del Pozo ({{ store.bloques.length }})
       </div>
+      <div class="flex items-center gap-1 mb-2">
+        <button
+          @click="store.showAllBlocks()"
+          :disabled="hiddenCount === 0"
+          title="Mostrar todas las piezas"
+          class="flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-[10px] font-medium text-slate-300 hover:bg-slate-800 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent transition"
+        >
+          <Eye class="w-3 h-3" />
+          Mostrar todo
+        </button>
+        <button
+          @click="store.hideAllBlocks()"
+          :disabled="hiddenCount === store.bloques.length"
+          title="Ocultar todas las piezas"
+          class="flex items-center gap-1 px-1.5 py-0.5 rounded border border-slate-700 text-[10px] font-medium text-slate-300 hover:bg-slate-800 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent transition"
+        >
+          <EyeOff class="w-3 h-3" />
+          Ocultar todo
+        </button>
+      </div>
+
+      <p v-if="hiddenCount > 0" class="text-[10px] text-amber-400/90 mb-1.5">
+        {{ hiddenCount === 1 ? '1 pieza oculta' : hiddenCount + ' piezas ocultas' }}:
+        {{ store.modelMode === 'solidoFinal' ? 'el Pozo Booleano muestra el sólido completo.' : 'igual cuentan en el volumen.' }}
+      </p>
+
       <div class="space-y-1">
-        <div 
-          v-for="b in store.bloques" 
+        <div
+          v-for="b in store.bloques"
           :key="b.id"
           @click="store.selectedBlockId = b.id"
           :class="b.id === store.selectedBlockId ? 'bg-sky-600/30 border-sky-500 text-white' : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'"
-          class="flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition"
+          class="flex items-center px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition"
         >
-          <div class="flex items-center space-x-2 truncate">
+          <button
+            @click.stop="store.toggleBlockVisibility(b.id)"
+            :title="isHidden(b.id) ? 'Mostrar en el visor' : 'Ocultar en el visor'"
+            :aria-label="(isHidden(b.id) ? 'Mostrar ' : 'Ocultar ') + b.nombre"
+            class="shrink-0 mr-2 -ml-1 p-0.5 rounded hover:bg-slate-700 transition"
+            :class="isHidden(b.id) ? 'text-slate-500' : 'text-slate-300'"
+          >
+            <EyeOff v-if="isHidden(b.id)" class="w-3.5 h-3.5" />
+            <Eye v-else class="w-3.5 h-3.5" />
+          </button>
+          <div class="flex flex-1 items-center space-x-2 truncate" :class="{ 'opacity-40': isHidden(b.id) }">
             <span :class="b.operacion === 'UNION' ? 'text-sky-400 font-bold' : 'text-rose-400 font-bold'">
               {{ b.operacion === 'UNION' ? '+' : '-' }}
             </span>
@@ -302,11 +338,13 @@
 import { computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
-import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus } from 'lucide-vue-next'
+import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus, Eye, EyeOff } from 'lucide-vue-next'
 
 const store = useEditorStore()
 
 const currentBlock = computed(() => store.selectedBlock)
+const isHidden = id => store.hiddenBlockIds.includes(id)
+const hiddenCount = computed(() => store.bloques.filter(b => isHidden(b.id)).length)
 const currentDef = computed(() => currentBlock.value ? GEOMETRY_TYPES[currentBlock.value.tipo_figura] : null)
 
 const explanationText = computed(() => {

@@ -479,7 +479,9 @@ function initThree() {
     if (!event.value && store.selectedBlock) {
       if (store.snapToGrid) {
         // Snapping inteligente entre caras de bloques adyacentes solo al soltar el arrastre manual
-        const snappedPos = snapBlockToBounds(store.selectedBlock, store.bloques, 0.35)
+        // Sin imán contra piezas que no se ven
+        const visibles = store.bloques.filter(b => !store.hiddenBlockIds.includes(b.id))
+        const snappedPos = snapBlockToBounds(store.selectedBlock, visibles, 0.35)
         store.updateBlockProperty(store.selectedBlock.id, 'pos_x', snappedPos.pos_x)
         store.updateBlockProperty(store.selectedBlock.id, 'pos_y', snappedPos.pos_y)
         store.updateBlockProperty(store.selectedBlock.id, 'pos_z', snappedPos.pos_z)
@@ -611,6 +613,8 @@ function renderEditMode() {
 
   for (const b of store.bloques) {
     if (!GEOMETRY_TYPES[b.tipo_figura]) continue
+    // Oculta: sin malla ni aristas, y tampoco se puede clickear ni mover
+    if (store.hiddenBlockIds.includes(b.id)) continue
 
     const { geometry, edges } = blockGeometry(b, usedKeys)
     const isSelected = b.id === store.selectedBlockId
@@ -671,6 +675,7 @@ watch(() => store.bloques, () => {
   else renderBlocks()
 }, { deep: true })
 watch(() => store.selectedBlockId, () => renderBlocks())
+watch(() => store.hiddenBlockIds, () => renderBlocks())
 watch(() => store.viewMode, () => renderBlocks())
 watch(() => store.modelMode, () => renderBlocks())
 watch(() => store.showDimensions, () => renderBlocks())
