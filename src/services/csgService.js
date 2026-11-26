@@ -210,24 +210,33 @@ export function getBlockBounds(block) {
 }
 
 /**
- * Snapping magnético inteligente entre caras de bloques.
- * En cada eje aplica el ajuste más corto que quede dentro del umbral.
+ * Snapping magnético entre caras de bloques cercanos.
+ * En cada eje aplica el ajuste más corto dentro del umbral, solo contra piezas
+ * que estén cerca en los otros dos ejes.
+ *
+ * Devuelve la posición y, en `faces`, las caras a las que se pegó
+ * ({ axis, value, box }) para resaltarlas.
  */
 export function snapBlockToBounds(targetBlock, allBlocks, threshold = 0.3) {
   if (!targetBlock) return null
 
-  const position = {
+  const result = {
     pos_x: targetBlock.pos_x,
     pos_y: targetBlock.pos_y,
-    pos_z: targetBlock.pos_z
+    pos_z: targetBlock.pos_z,
+    faces: []
   }
   const target = getBlockBounds(targetBlock)
-  if (!target) return position
+  if (!target) return result
+
+  const near = (box, axis) => ['x', 'y', 'z'].every(k =>
+    k === axis || (target.min[k] - box.max[k] <= threshold && box.min[k] - target.max[k] <= threshold))
 
   const best = { x: null, y: null, z: null }
-  const consider = (axis, delta) => {
+  const consider = (axis, from, value, box) => {
+    const delta = value - from
     if (Math.abs(delta) >= threshold) return
-    if (best[axis] === null || Math.abs(delta) < Math.abs(best[axis])) best[axis] = delta
+    if (!best[axis] || Math.abs(delta) < Math.abs(best[axis].delta)) best[axis] = { delta, axis, value, box }
   }
 
   for (const b of allBlocks) {
@@ -237,18 +246,23 @@ export function snapBlockToBounds(targetBlock, allBlocks, threshold = 0.3) {
 
     // Planta: caras enfrentadas o alineadas
     for (const axis of ['x', 'z']) {
-      consider(axis, other.max[axis] - target.min[axis])
-      consider(axis, other.min[axis] - target.max[axis])
-      consider(axis, other.min[axis] - target.min[axis])
-      consider(axis, other.max[axis] - target.max[axis])
+      if (!near(other, axis)) continue
+      consider(axis, target.min[axis], other.max[axis], other)
+      consider(axis, target.max[axis], other.min[axis], other)
+      consider(axis, target.min[axis], other.min[axis], other)
+      consider(axis, target.max[axis], other.max[axis], other)
     }
     // Puntal: apoyar encima o compartir piso
-    consider('y', other.max.y - target.min.y)
-    consider('y', other.min.y - target.min.y)
+    if (near(other, 'y')) {
+      consider('y', target.min.y, other.max.y, other)
+      consider('y', target.min.y, other.min.y, other)
+    }
   }
 
-  position.pos_x += best.x || 0
-  position.pos_y += best.y || 0
-  position.pos_z += best.z || 0
-  return position
+  for (const axis of ['x', 'y', 'z']) {
+    if (!best[axis]) continue
+    result['pos_' + axis] += best[axis].delta
+    result.faces.push(best[axis])
+  }
+  return result
 }

@@ -470,6 +470,33 @@ export const useEditorStore = defineStore('editor', {
       this.saveBloquesToDb()
     },
 
+    // --- Estirar (arrastre de un tirador) ---
+    // Mientras dura el arrastre no se registra historial: todo es un solo paso.
+
+    beginStretch() {
+      this.flushPendingHistory()
+    },
+
+    stretchBlock(blockId, values) {
+      const b = this.bloques.find(x => x.id === blockId)
+      if (!b || b.fijada) return
+      let changed = false
+      for (const [key, value] of Object.entries(values)) {
+        if (Number.isFinite(value) && b[key] !== value) {
+          b[key] = value
+          changed = true
+        }
+      }
+      if (!changed) return
+      b.volumen_individual = GEOMETRY_TYPES[b.tipo_figura].calculateVolume(b)
+      this.saveBloquesToDbDebounced()
+    },
+
+    endStretch() {
+      this.pushHistoryState()
+      this.saveBloquesToDb()
+    },
+
     toggleBlockOperation(blockId) {
       const b = this.bloques.find(x => x.id === blockId)
       if (!b) return

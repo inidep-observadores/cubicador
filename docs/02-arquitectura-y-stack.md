@@ -183,6 +183,7 @@ cubicador/
 │   │   ├── pwaUpdate.js         # Actualización automática de la app
 │   │   ├── migrations.js        # Validación y versionado del esquema
 │   │   ├── schema.js            # Tablas y datos de ejemplo
+│   │   ├── stretch.js           # Modo Estirar: tiradores por figura, imán y medidas
 │   │   ├── sqliteCompat.js      # Adaptador del motor para el esquema y las migraciones
 │   │   └── storageSafety.js     # Persistencia, candado de pestaña y copias
 │   ├── stores/

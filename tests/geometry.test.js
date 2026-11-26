@@ -65,7 +65,7 @@ test('snap: pega un cilindro a la cara de una caja según su diámetro', () => {
 test('snap: respeta la rotación de la pieza', () => {
   const caja = bloque(1, 'caja', { largo: 4 })
   // girada 90° en planta, su medida sobre X pasa a ser el ancho (1 m)
-  const girada = bloque(2, 'caja', { largo: 3, ancho: 1, rot_y: Math.PI / 2, pos_x: 2.6, pos_z: 5 })
+  const girada = bloque(2, 'caja', { largo: 3, ancho: 1, rot_y: Math.PI / 2, pos_x: 2.6, pos_z: 2 })
   const { pos_x } = snapBlockToBounds(girada, [caja, girada])
   assert.ok(Math.abs(pos_x - 2.5) < 1e-5, `pos_x = ${pos_x}`)
 })

@@ -54,6 +54,16 @@ En la barra inferior flotante del visor 3D se dispone de 4 accesos rápidos que 
 - **Tecla `W` (o `G`):** Activar modo **Mover / Traslación** (flechas roja para X, verde para Y, azul para Z).
 - **Tecla `R` (o `E`):** Activar modo **Rotar** (anillos de rotación con pasos magnéticos de 15°).
 - **Espacio:** Alternar entre mover y rotar.
+- **Tecla `S`:** Modo **Estirar** (ver abajo).
+
+### Modo Estirar
+La pieza seleccionada muestra tiradores (puntos ámbar) sobre las caras que se pueden estirar. Arrastrar uno cambia una medida; la pieza sigue siendo la misma figura. Se ve la medida en vivo y cada arrastre es un solo paso de deshacer.
+
+- **Caja, cuña regular, piramidal:** largo, ancho y alto, con la cara opuesta fija. En la cuña regular, estirar un costado ensancha a la vez el filo y la tapa trasera.
+- **Cilindros:** los diámetros crecen hacia todos los lados; el alto mantiene fija la base (o la cara superior, desde abajo).
+- **Cilindro elíptico:** el largo con el extremo opuesto fijo; la sección crece simétrica.
+- Trapezoides y cuña irregular todavía no se pueden estirar: se editan con las cotas.
+- Piezas fijadas u ocultas no muestran tiradores.
 
 ### Edición
 - **`Ctrl+Z`:** Deshacer. **`Ctrl+Y`** o **`Ctrl+Shift+Z`:** Rehacer (`Cmd` en Mac). Todo se puede deshacer: medidas, posiciones, giros, nombres, agregar o borrar piezas. Las ediciones continuas (escribir una medida, arrastrar) cuentan como un solo paso.
@@ -71,7 +81,7 @@ El sistema ofrece dos modalidades complementarias de posicionamiento:
 
 1. **Arrastre Visual en Pantalla (Snap Activo):**
    - Cuando se arrastra una pieza con el gizmo 3D, el movimiento se cuantiza automáticamente a pasos de `0.25 m`.
-   - Al soltar la pieza cerca de otra existente, se activa el **snap magnético entre caras**, pegando automáticamente las paredes de ambos bloques para evitar huecos no deseados.
+   - Al acercar una pieza (moviendo o estirando) a otra **cercana**, se pega a sus caras mientras se arrastra y la cara de referencia se **resalta en verde**. Usa la caja envolvente de cada pieza, así que con caras inclinadas o giros distintos de 90° puede quedar un hueco. Al rotar, el ajuste se aplica al soltar.
 2. **Ajuste Fino Manual por Teclado:**
    - En la sección **Ubicación en Bodega** del panel lateral derecho, los campos **Eje X (Eslora)**, **Eje Y (Puntal)** y **Eje Z (Manga)** aceptan valores numéricos directos con precisión centimétrica (`0.01 m`).
    - El gizmo no intercepta ni redondea los valores escritos a mano, permitiendo calibrar desplazamientos exactos según plano.

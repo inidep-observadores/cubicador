@@ -3,6 +3,17 @@
     <!-- Canvas Three.js (touch-none: los gestos son del visor, no de la página) -->
     <canvas ref="canvasRef" class="w-full h-full block outline-none cursor-grab active:cursor-grabbing touch-none"></canvas>
 
+    <!-- Medida en vivo mientras se estira -->
+    <div
+      v-if="stretchLabel"
+      class="absolute z-30 pointer-events-none -translate-x-1/2 -translate-y-full bg-amber-400 text-slate-950 font-mono font-bold text-xs px-2 py-1 rounded-md shadow-lg whitespace-nowrap"
+      :style="{ left: stretchLabel.x + 'px', top: stretchLabel.y - 14 + 'px' }"
+    >{{ stretchLabel.text }}</div>
+    <div
+      v-else-if="stretchHint"
+      class="absolute z-20 left-1/2 -translate-x-1/2 bottom-16 pointer-events-none bg-slate-900/90 border border-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg text-center max-w-[90%]"
+    >{{ stretchHint }}</div>
+
     <!-- Modo compacto: Edición / Vista previa flotando sobre el visor -->
     <div v-if="layout.isCompact" class="absolute top-2 left-2 z-20">
       <ModelModeToggle :show-labels="!layout.isShort" />
@@ -95,6 +106,17 @@
           <RotateCw class="w-3.5 h-3.5" />
           <span v-if="layout.isWide">Rotar (R)</span>
         </button>
+        <button
+          @click="store.transformMode = 'stretch'"
+          :class="[store.transformMode === 'stretch' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
+          title="Modo Estirar: arrastrar una cara para cambiar su medida (Tecla S)"
+          aria-label="Estirar"
+          :aria-pressed="store.transformMode === 'stretch'"
+          class="text-xs font-medium rounded transition flex items-center gap-1"
+        >
+          <MoveDiagonal class="w-3.5 h-3.5" />
+          <span v-if="layout.isWide">Estirar (S)</span>
+        </button>
       </div>
 
       <!-- Alternar Imán / Snap -->
@@ -144,9 +166,11 @@ import { snapBlockToBounds } from '../services/csgService'
 import { computeComposite } from '../services/csgClient'
 import { confirmDialog, dialogState } from '../services/dialog'
 import DecimalInput from './DecimalInput.vue'
+import { formatDecimal } from '../services/decimal'
 import ModelModeToggle from './ModelModeToggle.vue'
 import { layout } from '../services/layout'
-import { Compass, Move3d, Magnet, RotateCw } from 'lucide-vue-next'
+import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal } from 'lucide-vue-next'
+import { getHandles, supportsStretch, dragDistance, resolveStretch } from '../services/stretch'
 
 const store = useEditorStore()
 const containerRef = ref(null)
@@ -158,7 +182,7 @@ const CAMERA_VIEWS = [
   { id: 'side', label: 'Lateral', title: 'Vista Lateral: mirando desde Babor hacia Estribor (perfil longitudinal de Eslora)' }
 ]
 // Botones más grandes con pantalla táctil
-const btnPad = computed(() => layout.isTouch ? (layout.isPhone ? 'px-2 py-2' : 'px-2.5 py-2') : 'px-2 py-1')
+const btnPad = computed(() => layout.isTouch ? (layout.isPhone ? 'px-1.5 py-2' : 'px-2.5 py-2') : 'px-2 py-1')
 
 // Un toque o clic corto selecciona; si el puntero se mueve (orbitar) no
 const TAP_MAX_MOVE_PX = 8
@@ -176,6 +200,25 @@ const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
 
 let isDraggingGizmo = false
+
+// Modo Estirar
+const handlesGroup = new THREE.Group()
+const faceHighlightGroup = new THREE.Group()
+let stretchDrag = null // { start, handle, point, dir, d0, pointerId }
+const stretchLabel = ref(null) // { text, x, y } mientras se arrastra
+const handleGeometry = new THREE.SphereGeometry(1, 16, 12)
+const handleMaterial = new THREE.MeshBasicMaterial({ color: 0xfbbf24, depthTest: false, transparent: true })
+const handleActiveMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true })
+const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
+
+const stretchHint = computed(() => {
+  if (store.transformMode !== 'stretch' || store.modelMode !== 'edicion') return ''
+  const b = store.selectedBlock
+  if (!b) return 'Seleccioná una pieza para estirarla.'
+  if (b.fijada) return 'La pieza está fijada: liberala para estirarla.'
+  if (!supportsStretch(b)) return 'Esta figura todavía no se puede estirar: usá las cotas.'
+  return ''
+})
 let csgRenderToken = 0
 // Pieza seleccionada en la escena, para actualizarla en el arrastre sin reconstruir todo
 let selectedParts = null // { mesh, edges, box, boxHelper }
@@ -191,6 +234,13 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   canvasRef.value?.removeEventListener('pointerdown', onPointerDown)
   canvasRef.value?.removeEventListener('pointerup', onPointerUp)
+  containerRef.value?.removeEventListener('pointerdown', onHandleDown, true)
+  stopStretch()
+  clearHighlight()
+  handleGeometry.dispose()
+  handleMaterial.dispose()
+  handleActiveMaterial.dispose()
+  highlightMaterial.dispose()
   clearScene()
   disposeCaches()
   transformControls?.dispose()
@@ -214,6 +264,7 @@ function renderFrame() {
   renderRequested = false
   // Con amortiguación, la cámara sigue moviéndose unos cuadros después de soltar
   const cameraMoved = orbitControls.update()
+  scaleHandles()
   renderer.render(scene, camera)
   if (cameraMoved) requestRender()
 }
@@ -414,6 +465,8 @@ function onKeyDown(e) {
     store.transformMode = 'rotate'
   } else if (e.key === 'w' || e.key === 'W' || e.key === 'g' || e.key === 'G') {
     store.transformMode = 'translate'
+  } else if (e.key === 's' || e.key === 'S') {
+    store.transformMode = 'stretch'
   } else if (e.key === ' ' || e.key === 'Spacebar') {
     e.preventDefault()
     toggleTransformMode()
@@ -482,6 +535,8 @@ function initThree() {
   scene.add(csgMeshGroup)
   scene.add(edgesGroup)
   scene.add(dimensionsGroup)
+  scene.add(handlesGroup)
+  scene.add(faceHighlightGroup)
 
   // 6. Controles orbitales
   orbitControls = new OrbitControls(camera, renderer.domElement)
@@ -494,7 +549,7 @@ function initThree() {
   // 7. Gizmo de Transformación
   transformControls = new TransformControls(camera, renderer.domElement)
   transformControls.size = gizmoSize()
-  transformControls.setMode(store.transformMode)
+  if (store.transformMode !== 'stretch') transformControls.setMode(store.transformMode)
   transformControls.rotationSnap = THREE.MathUtils.degToRad(15) // Snap cada 15° al rotar
   scene.add(transformControls.getHelper())
 
@@ -502,7 +557,8 @@ function initThree() {
     isDraggingGizmo = Boolean(event.value)
     orbitControls.enabled = !event.value
     if (!event.value && store.selectedBlock) {
-      if (store.snapToGrid) {
+      clearHighlight()
+      if (store.snapToGrid && store.transformMode === 'rotate') {
         // Snapping inteligente entre caras de bloques adyacentes solo al soltar el arrastre manual
         // Sin imán contra piezas que no se ven
         const visibles = store.bloques.filter(b => !store.hiddenBlockIds.includes(b.id))
@@ -526,9 +582,17 @@ function initThree() {
       const obj = transformControls.object
       if (store.snapToGrid) {
         const step = store.gridStep
+        const crudo = obj.position.clone()
         obj.position.x = Math.round(obj.position.x / step) * step
         obj.position.y = Math.round(obj.position.y / step) * step
         obj.position.z = Math.round(obj.position.z / step) * step
+        if (store.transformMode === 'translate') {
+          // Si hay una cara cercana, manda sobre la cuadrícula en ese eje
+          const moved = { ...store.selectedBlock, pos_x: crudo.x, pos_y: crudo.y, pos_z: crudo.z }
+          const snapped = snapBlockToBounds(moved, visibleBlocks(), 0.35)
+          for (const face of snapped.faces) obj.position[face.axis] = snapped['pos_' + face.axis]
+          showHighlight(snapped.faces)
+        }
       }
       store.updateBlockProperty(store.selectedBlock.id, 'pos_x', obj.position.x)
       store.updateBlockProperty(store.selectedBlock.id, 'pos_y', obj.position.y)
@@ -544,6 +608,8 @@ function initThree() {
 
   canvas.addEventListener('pointerdown', onPointerDown)
   canvas.addEventListener('pointerup', onPointerUp)
+  // En captura sobre el contenedor: se adelanta a la cámara si se toca un tirador
+  containerRef.value.addEventListener('pointerdown', onHandleDown, true)
 
   // Se ajusta a cualquier cambio de tamaño del contenedor, no solo de la ventana
   resizeObserver = new ResizeObserver(onResize)
@@ -610,6 +676,7 @@ watch(() => layout.isTouch, () => {
 // ---------------------------------------------------------------------------
 function renderBlocks() {
   if (!scene) return
+  clearGroup(handlesGroup)
 
   if (store.modelMode === 'solidoFinal') {
     transformControls.detach()
@@ -681,7 +748,8 @@ function renderEditMode() {
     edgesGroup.add(edgesLine)
 
     if (isSelected) {
-      selectedMesh = b.fijada ? null : mesh
+      selectedMesh = b.fijada || store.transformMode === 'stretch' ? null : mesh
+      if (store.transformMode === 'stretch' && !b.fijada) addHandles(b)
       selectedParts = { mesh, edges: edgesLine, box: null }
 
       // Si está activo mostrar cotas, dibujar caja de cotas 3D
@@ -701,6 +769,148 @@ function renderEditMode() {
   } else {
     transformControls.detach()
   }
+}
+
+// ---------------------------------------------------------------------------
+// Imán y modo Estirar
+// ---------------------------------------------------------------------------
+function visibleBlocks() {
+  return store.bloques.filter(b => !store.hiddenBlockIds.includes(b.id))
+}
+
+function clearHighlight() {
+  while (faceHighlightGroup.children.length > 0) {
+    const mesh = faceHighlightGroup.children[0]
+    faceHighlightGroup.remove(mesh)
+    mesh.geometry.dispose()
+  }
+  requestRender()
+}
+
+/** Resalta las caras de otras piezas a las que se está pegando. */
+function showHighlight(faces) {
+  clearHighlight()
+  for (const { axis, value, box } of faces) {
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+    size[axis] = 0.02
+    center[axis] = value
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), highlightMaterial)
+    mesh.position.copy(center)
+    faceHighlightGroup.add(mesh)
+  }
+}
+
+function addHandles(block) {
+  for (const handle of getHandles(block)) {
+    const active = stretchDrag?.handle.id === handle.id
+    const mesh = new THREE.Mesh(handleGeometry, active ? handleActiveMaterial : handleMaterial)
+    mesh.position.copy(handle.worldPoint)
+    mesh.renderOrder = 999
+    mesh.userData = { handle }
+    handlesGroup.add(mesh)
+  }
+  scaleHandles()
+}
+
+function scaleHandles() {
+  if (!camera) return
+  const factor = layout.isTouch ? 0.016 : 0.01
+  for (const mesh of handlesGroup.children) {
+    mesh.scale.setScalar(camera.position.distanceTo(mesh.position) * factor)
+  }
+}
+
+function toScreen(point) {
+  const rect = canvasRef.value.getBoundingClientRect()
+  const p = point.clone().project(camera)
+  return { x: (p.x + 1) / 2 * rect.width, y: (1 - p.y) / 2 * rect.height, z: p.z }
+}
+
+function pointerRay(event) {
+  const rect = canvasRef.value.getBoundingClientRect()
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+  raycaster.setFromCamera(mouse, camera)
+  return raycaster.ray
+}
+
+/** Tirador bajo el puntero, medido en pantalla para que sea fácil de tomar. */
+function handleAt(event) {
+  const rect = canvasRef.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  let best = null
+  for (const mesh of handlesGroup.children) {
+    const p = toScreen(mesh.position)
+    const dist = Math.hypot(p.x - x, p.y - y)
+    if (dist > (layout.isTouch ? 24 : 12)) continue
+    // Entre superpuestos gana el más cercano al puntero y, a igualdad, el de adelante
+    const score = dist + p.z * 4
+    if (!best || score < best.score) best = { score, handle: mesh.userData.handle }
+  }
+  return best?.handle || null
+}
+
+function onHandleDown(event) {
+  if (event.target !== canvasRef.value || event.button !== 0 || !event.isPrimary) return
+  if (store.transformMode !== 'stretch' || !store.selectedBlock || store.selectedBlock.fijada) return
+  const handle = handleAt(event)
+  if (!handle) return
+  const point = handle.worldPoint.clone()
+  const dir = handle.worldDir.clone()
+  const d0 = dragDistance(point, dir, pointerRay(event))
+  if (d0 === null) return
+
+  event.stopPropagation() // que la cámara no orbite
+  event.preventDefault()
+  store.beginStretch()
+  stretchDrag = { start: { ...store.selectedBlock }, handle, point, dir, d0, pointerId: event.pointerId }
+  orbitControls.enabled = false
+  window.addEventListener('pointermove', onHandleMove)
+  window.addEventListener('pointerup', stopStretch)
+  window.addEventListener('pointercancel', stopStretch)
+  updateStretchLabel(stretchDrag.start, handle)
+  renderBlocks()
+}
+
+function onHandleMove(event) {
+  if (!stretchDrag || event.pointerId !== stretchDrag.pointerId) return
+  const { start, handle, point, dir, d0 } = stretchDrag
+  const t = dragDistance(point, dir, pointerRay(event))
+  if (t === null) return
+  const { block, face } = resolveStretch(start, handle, t - d0, visibleBlocks(), {
+    snap: store.snapToGrid,
+    step: store.gridStep
+  })
+  showHighlight(face ? [face] : [])
+  store.stretchBlock(start.id, {
+    [handle.param]: block[handle.param],
+    pos_x: block.pos_x,
+    pos_y: block.pos_y,
+    pos_z: block.pos_z
+  })
+  updateStretchLabel(block, handle)
+}
+
+function updateStretchLabel(block, handle) {
+  const param = GEOMETRY_TYPES[block.tipo_figura].params.find(p => p.key === handle.param)
+  const current = getHandles(block).find(x => x.id === handle.id)
+  const { x, y } = toScreen(current.worldPoint)
+  stretchLabel.value = { text: `${param.label}: ${formatDecimal(Number(block[handle.param].toFixed(2)))} m`, x, y }
+}
+
+function stopStretch(event) {
+  if (!stretchDrag || (event?.pointerId !== undefined && event.pointerId !== stretchDrag.pointerId)) return
+  stretchDrag = null
+  stretchLabel.value = null
+  orbitControls.enabled = true
+  window.removeEventListener('pointermove', onHandleMove)
+  window.removeEventListener('pointerup', stopStretch)
+  window.removeEventListener('pointercancel', stopStretch)
+  clearHighlight()
+  store.endStretch()
+  renderBlocks()
 }
 
 /**
@@ -726,8 +936,8 @@ watch(() => store.viewMode, () => renderBlocks())
 watch(() => store.modelMode, () => renderBlocks())
 watch(() => store.showDimensions, () => renderBlocks())
 watch(() => store.transformMode, (newMode) => {
-  if (transformControls) transformControls.setMode(newMode)
-  requestRender()
+  if (transformControls && newMode !== 'stretch') transformControls.setMode(newMode)
+  renderBlocks() // aparecen o desaparecen el gizmo y los tiradores
 })
 
 // ---------------------------------------------------------------------------
