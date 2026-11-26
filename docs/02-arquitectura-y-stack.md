@@ -138,7 +138,16 @@ Mientras no hay resultado, la barra superior muestra **"Calculando…"**; si el 
 
 ---
 
-## 6. Estructura de Directorios
+## 6. Diseño Adaptable y Actualizaciones
+
+- `src/services/layout.js` expone el tamaño de pantalla (`isPhone` < 768 px, `isCompact` < 1280 px, `isWide` ≥ 1536 px, `isTouch`, `isShort`) y el panel abierto en modo compacto. Los componentes deciden su disposición a partir de esos valores.
+- En modo compacto, `PanelSheet` muestra la paleta, la lista de piezas, el editor o el menú "Más" sobre el visor, como hoja inferior (teléfono vertical) o cajón lateral.
+- La selección en el visor se hace con un toque o clic corto (menos de 8 px y 600 ms); un arrastre orbita sin cambiar la selección.
+- `src/services/pwaUpdate.js` registra el service worker en modo `prompt` y aplica las versiones nuevas en un momento de reposo, después de guardar. Al arrancar, la app reintenta durante unos 2 s tomar el candado de pestaña, porque la página anterior puede tardar en soltarlo al recargar.
+
+---
+
+## 7. Estructura de Directorios
 
 ```
 cubicador/
@@ -149,6 +158,12 @@ cubicador/
 ├── src/
 │   ├── components/
 │   │   ├── AppDialog.vue        # Diálogos de confirmación y avisos
+│   │   ├── AppVersion.vue       # Versión y fecha de compilación
+│   │   ├── BackupsPanel.vue     # Exportar/importar y copias automáticas
+│   │   ├── BottomNav.vue        # Barra inferior del modo compacto
+│   │   ├── ModelModeToggle.vue  # Edición / Vista previa
+│   │   ├── MoreMenu.vue         # Menú "Más" del modo compacto
+│   │   ├── PanelSheet.vue       # Panel deslizable (hoja inferior o cajón lateral)
 │   │   ├── BlockCatalog.vue     # Paleta lateral de las 10 figuras navales
 │   │   ├── RecordForm.vue       # Alta, edición y baja de buques y pozos
 │   │   ├── PropertiesPanel.vue  # Inspector de parámetros, cotas y componentes
@@ -162,6 +177,8 @@ cubicador/
 │   │   ├── dialog.js            # API de los diálogos (confirmDialog, promptDialog…)
 │   │   ├── geometryCatalog.js   # Las 10 figuras navales, fórmulas y mallas
 │   │   ├── install.js           # Instalación de la PWA
+│   │   ├── layout.js            # Tamaño de pantalla y panel abierto (diseño adaptable)
+│   │   ├── pwaUpdate.js         # Actualización automática de la app
 │   │   ├── migrations.js        # Validación y versionado del esquema
 │   │   ├── schema.js            # Tablas y datos de ejemplo
 │   │   ├── sqliteCompat.js      # Adaptador del motor para el esquema y las migraciones
@@ -180,7 +197,7 @@ cubicador/
 
 ---
 
-## 7. Publicación
+## 8. Publicación
 
 - `npm run build` genera la app en `dist/`, lista para cualquier hosting estático.
 - Para publicarla en un subdirectorio (por ejemplo `https://servidor/cubicador/`), definir la ruta base al compilar. En PowerShell:

@@ -14,6 +14,10 @@ import { computeComposite, compositeKey } from '../services/csgClient'
 // Factor de captura inicial de un buque nuevo (kg/m³)
 export const DENSIDAD_POR_DEFECTO = 800
 
+// Reintentos para tomar el candado de pestaña al arrancar (~2 s en total)
+const LOCK_RETRIES = 8
+const LOCK_RETRY_MS = 250
+
 const HISTORY_LIMIT = 50
 // Las ediciones continuas se agrupan en un solo paso al quedar quietas este tiempo
 const HISTORY_DEBOUNCE_MS = 600
@@ -111,7 +115,14 @@ export const useEditorStore = defineStore('editor', {
       this.isLoading = true
       try {
         this.storagePersisted = await requestPersistentStorage()
-        const lock = await acquireTabLock({ onLost: () => this.onTabLockLost() })
+        // Al recargar (por ejemplo, tras una actualización automática) la página
+        // anterior puede tardar un instante en soltar el candado: se reintenta
+        let lock
+        for (let intento = 0; intento < LOCK_RETRIES; intento++) {
+          lock = await acquireTabLock({ onLost: () => this.onTabLockLost() })
+          if (lock !== 'ocupada') break
+          await new Promise(r => setTimeout(r, LOCK_RETRY_MS))
+        }
         if (lock === 'ocupada') {
           this.tabStatus = 'ocupada'
           return

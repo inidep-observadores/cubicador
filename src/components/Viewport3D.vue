@@ -1,15 +1,22 @@
 <template>
   <div class="relative w-full h-full overflow-hidden bg-slate-950" ref="containerRef">
-    <!-- Canvas Three.js -->
-    <canvas ref="canvasRef" class="w-full h-full block outline-none cursor-grab active:cursor-grabbing"></canvas>
+    <!-- Canvas Three.js (touch-none: los gestos son del visor, no de la página) -->
+    <canvas ref="canvasRef" class="w-full h-full block outline-none cursor-grab active:cursor-grabbing touch-none"></canvas>
 
-    <!-- Cotas del bloque seleccionado: editables, solo las medidas de su figura -->
+    <!-- Modo compacto: Edición / Vista previa flotando sobre el visor -->
+    <div v-if="layout.isCompact" class="absolute top-2 left-2 z-20">
+      <ModelModeToggle :show-labels="!layout.isShort" />
+    </div>
+
+    <!-- Cotas del bloque seleccionado: editables, solo las medidas de su figura.
+         En el teléfono se editan desde el panel "Editar" -->
     <div
-      v-if="store.showDimensions && store.selectedBlock && selectedDef"
-      class="absolute top-4 right-4 z-20 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl p-3 shadow-lg font-mono text-xs text-slate-300 space-y-1"
+      v-if="store.showDimensions && store.selectedBlock && selectedDef && !layout.isPhone"
+      class="absolute z-20 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl shadow-lg font-mono text-xs text-slate-300 space-y-1"
+      :class="layout.isCompact ? 'top-2 right-2 p-2' : 'top-4 right-4 p-3'"
     >
       <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400 font-sans mb-1">
-        Cotas del Bloque Seleccionado
+        {{ layout.isCompact ? 'Cotas' : 'Cotas del Bloque Seleccionado' }}
       </div>
       <label
         v-for="param in selectedDef.params"
@@ -30,88 +37,92 @@
       </label>
     </div>
 
-    <!-- Overlay de controles flotantes sobre el 3D -->
-    <div class="absolute bottom-4 left-4 z-10 flex items-center space-x-2 bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl p-1.5 shadow-lg">
-      <button 
+    <!-- Controles flotantes: cámara, mover/rotar e imán -->
+    <div
+      class="absolute z-10 flex items-center bg-slate-900/90 backdrop-blur border border-slate-800 rounded-xl shadow-lg overflow-x-auto max-w-[calc(100%-1rem)] [scrollbar-width:none]"
+      :class="layout.isCompact ? 'bottom-2 left-2 gap-1 p-1' : 'bottom-4 left-4 gap-2 p-1.5'"
+    >
+      <button
         @click="resetCamera"
         title="Restablecer Vista Isométrica (Esquina Superior Babor-Proa)"
-        class="flex items-center space-x-1 px-2.5 py-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition"
+        aria-label="Centrar la vista"
+        class="shrink-0 flex items-center gap-1 text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition"
+        :class="btnPad"
       >
         <Compass class="w-4 h-4 text-sky-400" />
-        <span>Centrar</span>
+        <span v-if="!layout.isCompact">Centrar</span>
       </button>
 
-      <div class="h-4 w-px bg-slate-800"></div>
+      <div v-if="!layout.isPhone" class="shrink-0 h-4 w-px bg-slate-800"></div>
 
       <!-- Vistas ortogonales estándar con terminología náutica -->
-      <button 
-        @click="setCameraView('top')"
-        title="Vista en Planta (Cubierta superior)"
-        class="px-2 py-1 text-xs font-mono text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded transition"
+      <button
+        v-for="v in CAMERA_VIEWS"
+        :key="v.id"
+        @click="setCameraView(v.id)"
+        :title="v.title"
+        class="shrink-0 text-xs font-mono text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded transition"
+        :class="btnPad"
       >
-        Planta
-      </button>
-      <button 
-        @click="setCameraView('front')"
-        title="Vista Frente: mirando la pared transversal (de Estribor a Babor) desde Proa hacia Popa"
-        class="px-2 py-1 text-xs font-mono text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded transition"
-      >
-        Frente
-      </button>
-      <button 
-        @click="setCameraView('side')"
-        title="Vista Lateral: mirando desde Babor hacia Estribor (perfil longitudinal de Eslora)"
-        class="px-2 py-1 text-xs font-mono text-slate-400 hover:text-sky-300 hover:bg-slate-800 rounded transition"
-      >
-        Lateral
+        {{ v.label }}
       </button>
 
-      <div class="h-4 w-px bg-slate-800"></div>
+      <div v-if="!layout.isPhone" class="shrink-0 h-4 w-px bg-slate-800"></div>
 
       <!-- Modo de manipulación de bloque (Mover / Rotar) -->
-      <div class="flex bg-slate-800 border border-slate-700 rounded-lg p-0.5">
-        <button 
+      <div class="shrink-0 flex bg-slate-800 border border-slate-700 rounded-lg p-0.5">
+        <button
           @click="store.transformMode = 'translate'"
-          :class="store.transformMode === 'translate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+          :class="[store.transformMode === 'translate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
           title="Modo Mover (Tecla W o G)"
-          class="px-2 py-1 text-xs font-medium rounded transition flex items-center gap-1"
+          aria-label="Mover"
+          :aria-pressed="store.transformMode === 'translate'"
+          class="text-xs font-medium rounded transition flex items-center gap-1"
         >
           <Move3d class="w-3.5 h-3.5" />
-          <span>Mover (W)</span>
+          <span v-if="layout.isWide">Mover (W)</span>
         </button>
-        <button 
+        <button
           @click="store.transformMode = 'rotate'"
-          :class="store.transformMode === 'rotate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white'"
+          :class="[store.transformMode === 'rotate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
           title="Modo Rotar (Tecla R o E)"
-          class="px-2 py-1 text-xs font-medium rounded transition flex items-center gap-1"
+          aria-label="Rotar"
+          :aria-pressed="store.transformMode === 'rotate'"
+          class="text-xs font-medium rounded transition flex items-center gap-1"
         >
           <RotateCw class="w-3.5 h-3.5" />
-          <span>Rotar (R)</span>
+          <span v-if="layout.isWide">Rotar (R)</span>
         </button>
       </div>
 
       <!-- Alternar Imán / Snap -->
-      <button 
+      <button
         @click="store.snapToGrid = !store.snapToGrid"
-        :class="store.snapToGrid ? 'text-amber-400 bg-amber-500/10' : 'text-slate-500 hover:text-slate-300'"
+        :class="[store.snapToGrid ? 'text-amber-400 bg-amber-500/10' : 'text-slate-500 hover:text-slate-300', btnPad]"
         title="Ajuste Magnético a la Cuadrícula (Snap 0.25m)"
-        class="p-1.5 rounded-lg border border-transparent hover:border-slate-700 transition"
+        aria-label="Imán"
+        :aria-pressed="store.snapToGrid"
+        class="shrink-0 rounded-lg border border-transparent hover:border-slate-700 transition"
       >
         <Magnet class="w-4 h-4" />
       </button>
     </div>
 
     <!-- Indicador Náutico de Orientación -->
-    <div class="absolute bottom-4 right-4 z-10 pointer-events-none text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 font-mono">
-      <span class="text-rose-400 font-bold">X: Eslora (Proa)</span>
+    <div
+      v-if="!layout.isPhone"
+      class="absolute z-10 pointer-events-none text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 font-mono"
+      :class="layout.isCompact ? 'bottom-2 right-2' : 'bottom-4 right-4'"
+    >
+      <span class="text-rose-400 font-bold">X: Eslora{{ layout.isWide ? ' (Proa)' : '' }}</span>
       <span class="text-slate-600">|</span>
       <span class="text-emerald-400 font-bold">Y: Puntal</span>
       <span class="text-slate-600">|</span>
-      <span class="text-sky-400 font-bold">Z: Manga (Babor/Estribor)</span>
+      <span class="text-sky-400 font-bold">Z: Manga{{ layout.isWide ? ' (Babor/Estribor)' : '' }}</span>
     </div>
 
-    <!-- Indicador de Navegación de Ayuda -->
-    <div class="absolute top-4 left-4 z-10 pointer-events-none text-[11px] text-slate-400 bg-slate-900/70 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-3">
+    <!-- Ayuda de navegación con mouse (solo escritorio sin pantalla táctil) -->
+    <div v-if="layout.isWide && !layout.isTouch" class="absolute top-4 left-4 z-10 pointer-events-none text-[11px] text-slate-400 bg-slate-900/70 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-3">
       <span>🖱️ <strong>Click Izq:</strong> Orbitar</span>
       <span>🖱️ <strong>Click Der:</strong> Paneo</span>
       <span>📜 <strong>Rueda:</strong> Zoom</span>
@@ -131,11 +142,26 @@ import { snapBlockToBounds } from '../services/csgService'
 import { computeComposite } from '../services/csgClient'
 import { confirmDialog, dialogState } from '../services/dialog'
 import DecimalInput from './DecimalInput.vue'
+import ModelModeToggle from './ModelModeToggle.vue'
+import { layout } from '../services/layout'
 import { Compass, Move3d, Magnet, RotateCw } from 'lucide-vue-next'
 
 const store = useEditorStore()
 const containerRef = ref(null)
 const canvasRef = ref(null)
+
+const CAMERA_VIEWS = [
+  { id: 'top', label: 'Planta', title: 'Vista en Planta (Cubierta superior)' },
+  { id: 'front', label: 'Frente', title: 'Vista Frente: mirando la pared transversal (de Estribor a Babor) desde Proa hacia Popa' },
+  { id: 'side', label: 'Lateral', title: 'Vista Lateral: mirando desde Babor hacia Estribor (perfil longitudinal de Eslora)' }
+]
+// Botones más grandes con pantalla táctil
+const btnPad = computed(() => layout.isTouch ? (layout.isPhone ? 'px-2 py-2' : 'px-2.5 py-2') : 'px-2 py-1')
+
+// Un toque o clic corto selecciona; si el puntero se mueve (orbitar) no
+const TAP_MAX_MOVE_PX = 8
+const TAP_MAX_MS = 600
+let tapStart = null
 
 const selectedDef = computed(() => GEOMETRY_TYPES[store.selectedBlock?.tipo_figura] || null)
 
@@ -162,6 +188,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeyDown)
   resizeObserver?.disconnect()
   canvasRef.value?.removeEventListener('pointerdown', onPointerDown)
+  canvasRef.value?.removeEventListener('pointerup', onPointerUp)
   clearScene()
   disposeCaches()
   transformControls?.dispose()
@@ -464,7 +491,7 @@ function initThree() {
 
   // 7. Gizmo de Transformación
   transformControls = new TransformControls(camera, renderer.domElement)
-  transformControls.size = 1.1
+  transformControls.size = gizmoSize()
   transformControls.setMode(store.transformMode)
   transformControls.rotationSnap = THREE.MathUtils.degToRad(15) // Snap cada 15° al rotar
   scene.add(transformControls.getHelper())
@@ -514,6 +541,7 @@ function initThree() {
   })
 
   canvas.addEventListener('pointerdown', onPointerDown)
+  canvas.addEventListener('pointerup', onPointerUp)
 
   // Se ajusta a cualquier cambio de tamaño del contenedor, no solo de la ventana
   resizeObserver = new ResizeObserver(onResize)
@@ -534,11 +562,19 @@ function onResize() {
 }
 
 function onPointerDown(event) {
-  if (event.button !== 0) return
+  tapStart = null
+  if (event.button !== 0 || !event.isPrimary) return
   // Si el usuario está interactuando con el Gizmo, ignorar para no cambiar la selección
-  if (transformControls && (transformControls.dragging || transformControls.axis !== null)) {
-    return
-  }
+  if (transformControls && (transformControls.dragging || transformControls.axis !== null)) return
+  tapStart = { x: event.clientX, y: event.clientY, t: performance.now() }
+}
+
+function onPointerUp(event) {
+  const start = tapStart
+  tapStart = null
+  if (!start || !event.isPrimary) return
+  const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y)
+  if (moved > TAP_MAX_MOVE_PX || performance.now() - start.t > TAP_MAX_MS) return
 
   const rect = canvasRef.value.getBoundingClientRect()
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -554,6 +590,18 @@ function onPointerDown(event) {
     }
   }
 }
+
+// Con pantalla táctil, gizmo más grande para poder tomarlo con el dedo
+function gizmoSize() {
+  return layout.isTouch ? 1.6 : 1.1
+}
+
+watch(() => layout.isTouch, () => {
+  if (transformControls) {
+    transformControls.size = gizmoSize()
+    requestRender()
+  }
+})
 
 // ---------------------------------------------------------------------------
 // Armado de la escena

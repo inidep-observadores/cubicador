@@ -64,4 +64,4 @@ npm run build
 npm run icons
 ```
 
-Para publicar en un subdirectorio, ver [02. Arquitectura · Publicación](./02-arquitectura-y-stack.md#7-publicación).
+Para publicar en un subdirectorio, ver [02. Arquitectura · Publicación](./02-arquitectura-y-stack.md#8-publicación).

@@ -2,6 +2,9 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 import vueDevTools from 'vite-plugin-vue-devtools'
+import { readFileSync } from 'node:fs'
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
 
 // Ruta donde se publica la app. Por defecto en la raíz del dominio; para un
 // subdirectorio: BASE_PATH=/cubicador/ npm run build
@@ -9,12 +12,20 @@ const base = (process.env.BASE_PATH || '/').replace(/\/?$/, '/')
 
 export default defineConfig({
   base,
+  // Versión y fecha de compilación, visibles en la app para saber qué versión corre
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString())
+  },
   plugins: [
     // Solo actúa con `npm run dev` (Alt+Shift+D); no entra en la compilación
     vueDevTools(),
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // La app decide cuándo aplicar una versión nueva (src/services/pwaUpdate.js):
+      // espera a que no se esté editando y guarda antes de recargar
+      registerType: 'prompt',
+      injectRegister: false,
       includeAssets: ['favicon.svg', 'favicon-32x32.png', 'apple-touch-icon.png'],
       manifest: {
         id: base,
@@ -36,6 +47,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        cleanupOutdatedCaches: true,
         // Workers de SQLite WASM que esta app no usa (modo "opfs" y API Worker1):
         // se publican porque la librería los referencia, pero no hace falta cachearlos
         globIgnores: ['**/sqlite3-opfs-async-proxy-*.js', '**/sqlite3-worker1-*.js']

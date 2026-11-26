@@ -1,7 +1,7 @@
 <template>
-  <aside class="w-[21rem] shrink-0 bg-slate-900/95 border-l border-slate-800 flex flex-col h-full select-none z-20">
+  <aside class="bg-slate-900/95 flex flex-col h-full min-h-0 select-none">
     <!-- Encabezado de Selección -->
-    <div class="p-3 border-b border-slate-800 flex items-center justify-between">
+    <div v-if="section === 'todo'" class="p-3 border-b border-slate-800 flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <Sliders class="w-4 h-4 text-sky-400" />
         <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Inspector de Parámetros</h2>
@@ -16,14 +16,14 @@
     </div>
 
     <!-- Si no hay bloque seleccionado -->
-    <div v-if="!currentBlock" class="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500">
+    <div v-if="section !== 'lista' && !currentBlock" class="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500">
       <BoxSelect class="w-10 h-10 mb-2 stroke-1 text-slate-600" />
       <p class="text-xs font-medium text-slate-400">Ningún bloque seleccionado</p>
-      <p class="text-[11px] text-slate-500 mt-1">Haz clic en una pieza del visor 3D o agrégala desde la paleta izquierda.</p>
+      <p class="text-[11px] text-slate-500 mt-1">{{ emptyHint }}</p>
     </div>
 
     <!-- Panel de edición del bloque seleccionado -->
-    <div v-else class="flex-1 overflow-y-auto p-4 space-y-4">
+    <div v-else-if="section !== 'lista'" class="flex-1 overflow-y-auto p-4 space-y-4">
       <!-- Nombre y Tipo de Operación -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
@@ -257,8 +257,12 @@
     </div>
 
     <!-- Lista inferior / Capas de piezas del pozo -->
-    <div class="border-t border-slate-800 bg-slate-950/90 p-3 max-h-56 overflow-y-auto">
-      <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+    <div
+      v-if="section !== 'editor'"
+      class="bg-slate-950/90 p-3 overflow-y-auto"
+      :class="section === 'lista' ? 'flex-1' : 'border-t border-slate-800 max-h-56'"
+    >
+      <div v-if="section === 'todo'" class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
         Componentes del Pozo ({{ store.bloques.length }})
       </div>
       <div class="flex items-center gap-1 mb-2">
@@ -291,9 +295,11 @@
         <div
           v-for="b in store.bloques"
           :key="b.id"
-          @click="store.selectedBlockId = b.id"
+          @click="pick(b.id)"
           :class="b.id === store.selectedBlockId ? 'bg-sky-600/30 border-sky-500 text-white' : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'"
           class="flex items-center px-2.5 py-1.5 rounded-lg border text-xs cursor-pointer transition"
+          :style="{ minHeight: layout.isTouch ? '40px' : undefined }"
+          
         >
           <button
             @click.stop="store.toggleBlockVisibility(b.id)"
@@ -325,9 +331,26 @@ import { computed } from 'vue'
 import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
 import DecimalInput from './DecimalInput.vue'
+import { layout } from '../services/layout'
 import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus, Eye, EyeOff } from 'lucide-vue-next'
 
 const store = useEditorStore()
+
+const props = defineProps({
+  // 'todo': columna de escritorio · 'editor': solo la pieza seleccionada ·
+  // 'lista': solo los componentes del pozo (paneles del modo compacto)
+  section: { type: String, default: 'todo' }
+})
+const emit = defineEmits(['picked'])
+
+const emptyHint = computed(() => props.section === 'todo'
+  ? 'Haz clic en una pieza del visor 3D o agrégala desde la paleta izquierda.'
+  : 'Tocá una pieza en el visor o en "Piezas", o agregá una desde "Figuras".')
+
+function pick(id) {
+  store.selectedBlockId = id
+  emit('picked', id)
+}
 
 const currentBlock = computed(() => store.selectedBlock)
 const isHidden = id => store.hiddenBlockIds.includes(id)

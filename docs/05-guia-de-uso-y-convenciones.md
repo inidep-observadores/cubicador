@@ -12,6 +12,25 @@ Para garantizar consistencia con los planos navales y la práctica marina a bord
 
 ---
 
+## Pantallas y Dispositivos
+
+La interfaz se adapta al tamaño de la pantalla:
+
+| Pantalla | Disposición |
+| :--- | :--- |
+| **Escritorio** (1280 px o más) | Paleta de figuras, visor e inspector en tres columnas. Con menos de 1536 px los paneles son más angostos y algunos botones muestran solo el ícono. |
+| **Tablet y teléfono horizontal** (768 a 1279 px) | El visor ocupa todo el ancho. Una barra inferior abre los paneles como cajones laterales. |
+| **Teléfono vertical** (menos de 768 px) | Barra superior en dos filas (buque/pozo y volumen/captura). Los paneles suben desde abajo y dejan ver parte del visor. |
+
+En tablet y teléfono, la barra inferior tiene: **Figuras** (agregar), **Piezas** (lista del pozo; al tocar una se abre su edición), **Editar** (la pieza seleccionada), **Deshacer**, **Rehacer** y **Más** (modo de visualización, cotas, imán, respaldos, instalación y versión). El selector Edición / Vista previa queda sobre el visor, arriba a la izquierda.
+
+### Uso táctil
+- **Un dedo:** orbitar. **Dos dedos:** zoom y desplazamiento.
+- **Tocar una pieza:** seleccionarla. Arrastrar para orbitar no cambia la selección.
+- Con pantalla táctil, el gizmo de mover/rotar y los botones son más grandes.
+
+---
+
 ## 2. Vistas de Cámara Preconfiguradas
 
 En la barra inferior flotante del visor 3D se dispone de 4 accesos rápidos que posicionan la cámara:
@@ -118,3 +137,8 @@ La barra superior muestra el volumen del sólido que resulta de unir y cortar la
 - Cuando el navegador lo permite (Chrome, Edge, Android), aparece el botón **"Instalar app"** en la barra superior. Instalada, la app se abre como una aplicación más y funciona sin conexión.
 - Una vez cargada, la app queda guardada en el navegador: funciona offline aunque no esté instalada.
 - Instalarla también ayuda a que el navegador conserve los datos de forma persistente.
+
+### Actualizaciones automáticas
+- La app busca una versión nueva al abrirse, al volver a primer plano, al recuperar la conexión y cada 30 minutos.
+- Cuando la encuentra, la aplica sola: espera a que no haya un formulario o diálogo abierto ni un campo en edición, guarda lo pendiente, muestra "Actualizando a la nueva versión…" y recarga. Si la app está en segundo plano, se actualiza en ese momento.
+- La versión y la fecha de compilación se ven en el menú de respaldos (escritorio) o en "Más" (tablet y teléfono).
