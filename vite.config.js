@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
+import vueDevTools from 'vite-plugin-vue-devtools'
 
 // Ruta donde se publica la app. Por defecto en la raíz del dominio; para un
 // subdirectorio: BASE_PATH=/cubicador/ npm run build
@@ -9,6 +10,8 @@ const base = (process.env.BASE_PATH || '/').replace(/\/?$/, '/')
 export default defineConfig({
   base,
   plugins: [
+    // Solo actúa con `npm run dev` (Alt+Shift+D); no entra en la compilación
+    vueDevTools(),
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
