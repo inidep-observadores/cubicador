@@ -578,12 +578,15 @@ export const GEOMETRY_TYPES = {
     id: 'piramidal',
     nombre: 'Piramidal',
     categoria: 'Básicos',
-    descripcion: 'V = (W × L × H) / 6. Pirámide de base triangular: rincones de quilla o compensaciones.',
+    descripcion: 'V = (W × L × H) / 6. Pirámide de base triangular: rincones de quilla o compensaciones. El vértice se puede desplazar sin cambiar el volumen.',
     formula: 'V = (W × L × H) / 6',
     params: [
       { key: 'largo', label: 'Largo (L)', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
       { key: 'ancho', label: 'Ancho (W)', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
-      { key: 'alto', label: 'Alto (H)', default: 2.0, min: 0.1, step: 0.1, unit: 'm' }
+      { key: 'alto', label: 'Alto (H)', default: 2.0, min: 0.1, step: 0.1, unit: 'm' },
+      // Corrimiento del vértice paralelo a la base (puede ser negativo): no cambia el volumen
+      { key: 'desvio_largo', label: 'Desvío vértice en L', default: 0, min: -100, step: 0.1, unit: 'm' },
+      { key: 'desvio_ancho', label: 'Desvío vértice en W', default: 0, min: -100, step: 0.1, unit: 'm' }
     ],
     svgDiagram: `
       <svg viewBox="0 0 160 100" class="w-full h-20 stroke-sky-400 fill-sky-500/10 stroke-1 font-mono text-[9px]">
@@ -615,7 +618,8 @@ export const GEOMETRY_TYPES = {
         [-L/2, 0, -W/2],
         [ L/2, 0, -W/2],
         [-L/2, 0,  W/2],
-        [-L/2, H, -W/2]
+        // Vértice: sobre la esquina, o corrido en paralelo a la base
+        [-L/2 + (p.desvio_largo || 0), H, -W/2 + (p.desvio_ancho || 0)]
       ]
 
       const indices = [

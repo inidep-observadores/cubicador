@@ -51,6 +51,8 @@ export function initTables(db) {
 
       volumen_individual REAL DEFAULT 0.0,
       fijada INTEGER DEFAULT 0, -- 1: no se puede mover ni cambiar sus medidas
+      desvio_largo REAL DEFAULT 0, -- piramidal: corrimiento del vértice
+      desvio_ancho REAL DEFAULT 0,
       FOREIGN KEY (pozo_id) REFERENCES pozos (id) ON DELETE CASCADE
     );
   `)

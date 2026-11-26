@@ -36,6 +36,9 @@ Ningún pozo real tiene una forma simple. La app propone **armarlo con figuras g
 
 La app calcula el volumen del **sólido que resulta** de unir y recortar todas las piezas según **dónde están ubicadas**. Si dos piezas que suman se superponen, la parte compartida se cuenta una sola vez. Si una pieza que resta sobresale del pozo, solo se descuenta la parte que está adentro.
 
+![Una caja que suma, menos una columna y una rampa que restan, da el pozo resultante](img/manual/sumar-restar.svg)
+
+
 ### Qué se obtiene
 
 | Resultado | Unidad | Cómo se calcula |
@@ -60,6 +63,9 @@ La app usa la orientación del buque:
 | **Z** | azul | **Manga** (a lo ancho del buque) | hacia **babor** |
 
 El piso de la cuadrícula es la altura 0. El punto donde se cruzan los ejes es el origen (0, 0, 0): conviene usarlo como referencia del pozo, por ejemplo el centro del piso.
+
+![Planta y costado del buque con los ejes X hacia proa, Y hacia arriba y Z hacia babor](img/manual/ejes.svg)
+
 
 ---
 
@@ -103,6 +109,10 @@ La disposición cambia según el tamaño de la pantalla, pero las funciones son 
 | **Centro: Visor 3D** | El pozo en tres dimensiones |
 | **Derecha: Inspector de parámetros** | Las medidas, la ubicación y el giro de la pieza seleccionada, y la lista de piezas del pozo |
 
+
+![La app en computadora: paleta a la izquierda, visor en el centro e inspector a la derecha](img/manual/pantalla-escritorio.webp)
+
+
 ### En tablet y teléfono
 
 El visor ocupa toda la pantalla y abajo aparece una **barra con botones**:
@@ -116,6 +126,9 @@ El visor ocupa toda la pantalla y abajo aparece una **barra con botones**:
 | **Más** | Estilo de visualización, cotas, imán, respaldos, instalar, manual y versión |
 
 Los paneles se abren sobre el visor y se cierran con la **✕**. En el teléfono vertical suben desde abajo y dejan ver parte del pozo, así que se puede ver el cambio mientras se edita.
+
+<img src="img/manual/pantalla-telefono.webp" alt="La app en un teléfono: el visor ocupa la pantalla y abajo está la barra de botones" width="300">
+
 
 ---
 
@@ -169,6 +182,9 @@ El factor indica **cuántas toneladas de captura entran en un metro cúbico** de
 
 Para cambiarlo: **✎** junto al buque, o clic en **"Factor: … t/m³"** debajo de la captura estimada.
 
+![Formulario para editar el buque, con el nombre y el factor de captura](img/manual/formulario-buque.webp)
+
+
 **Cómo obtenerlo a partir de una muestra:**
 
 > Factor (t/m³) = peso de la muestra (t) ÷ volumen de la muestra (m³)
@@ -185,7 +201,7 @@ En la **Paleta naval** (en tablet y teléfono, en **Figuras**) están las 10 fig
 | :--- | :--- | :--- |
 | **Caja (Prisma Rectangular)** | El cuerpo principal del pozo, tanques, cajones | Largo, ancho, alto |
 | **Cuña Regular (Rampa)** | Rampas o pendientes del piso, con el mismo ancho en toda su longitud | Largo, ancho, alto |
-| **Piramidal** | Rincones triangulares, por ejemplo en la quilla | Largo, ancho, alto |
+| **Piramidal** | Rincones triangulares, por ejemplo en la quilla | Largo, ancho, alto y desvío del vértice |
 | **Cuña Irregular (Forma Pozo)** | Rampas que se angostan: el ancho de abajo (A) es distinto del de arriba (B) | Largo del piso, altura máxima, ancho bajo (A), ancho alto (B) |
 | **Trapezoide (Prisma Trapezoidal)** | Pozos con los costados inclinados (pantoques) | Largo, alto vertical, ancho superior (A), ancho inferior (B) |
 | **Trapezoide Cónico (1)** | Pozos de costados inclinados cuya sección cambia de un extremo al otro | Largo, alto vertical, anchos de arriba y abajo en cada extremo (A, B, C, D) |
@@ -195,6 +211,10 @@ En la **Paleta naval** (en tablet y teléfono, en **Figuras**) están las 10 fig
 | **Cilindro Elíptico (Bolsa de Red)** | Copo o bolsa de red | Largo, ancho y alto de la sección |
 
 > **El alto (H) es siempre vertical**: la distancia de arriba a abajo medida a plomo, no a lo largo de una pared inclinada.
+
+
+<img src="img/manual/paleta.webp" alt="La Paleta naval con las pestañas de categorías y las tarjetas de figuras" width="360">
+
 
 ---
 
@@ -226,6 +246,10 @@ En el **Inspector de parámetros** (en tablet y teléfono, en **Editar**):
 7. **Volumen calculado:** la fórmula con los números de la pieza y su volumen individual.
 8. **Duplicar** y **Eliminar**.
 
+
+<img src="img/manual/inspector.webp" alt="El inspector de parámetros con el nombre, el rol, las medidas y la ubicación de una rampa" width="380">
+
+
 Si escribís un valor inválido (vacío, letras o una medida menor al mínimo), el campo se pone **rojo** y no se aplica. Al salir del campo vuelve el último valor válido.
 
 ### Ubicación: qué significan X, Y y Z
@@ -237,6 +261,10 @@ Si escribís un valor inválido (vacío, letras o una medida menor al mínimo), 
 | **Eje Z (Manga)** | Dónde está el **centro** de la pieza a lo ancho del buque |
 
 Ejemplo: una caja de 6 m de largo con X = 0 va de −3 a +3 en la eslora. Con X = 4, va de 1 a 7.
+
+
+![Vista de costado: el eje X marca el centro de la pieza y el eje Y la altura de su piso](img/manual/ubicacion.svg)
+
 
 ### Orientación y giro
 
@@ -256,15 +284,38 @@ En la barra flotante de abajo del visor hay tres modos:
 | **Rotar** | R | Aparecen anillos. Arrastrar un anillo gira la pieza de a 15°. |
 | **Estirar** | S | Aparecen **puntos amarillos** sobre las caras. Arrastrar uno cambia una medida, sin cambiar el tipo de figura. |
 
+
+![Modo Mover: flechas roja, verde y azul sobre la columna seleccionada](img/manual/modo-mover.webp)
+
+
 **Modo Estirar en detalle:**
 - Mientras arrastrás, se ve la medida en un cartel amarillo.
 - La **cara opuesta queda quieta**. Por ejemplo, en una cuña, si estirás el lado de la cara vertical, el filo no se mueve.
 - Funciona con la caja, la cuña regular, la piramidal, el cilindro, el cilindro cónico y el cilindro elíptico. Los trapezoides y la cuña irregular se ajustan escribiendo las medidas.
 - En los cilindros, el diámetro crece hacia todos los lados.
 
+### El vértice de la Piramidal
+
+La piramidal tiene una base triangular y un **vértice** (la punta). Al agregarla, la punta está justo encima de la esquina de la base, pero se puede **correr en paralelo a la base** para adaptarla a la forma del pozo:
+
+- En el modo **Estirar**, arrastrá el **punto verde** de la punta. Se mueve en una sola dirección por vez: la que más se parezca a tu movimiento. El punto amarillo que está un poco más allá cambia el alto.
+- O escribí **Desvío vértice en L** y **Desvío vértice en W** (en metros) en el inspector o en la ventana de cotas. Un valor negativo corre la punta hacia el otro lado, y 0 la deja sobre la esquina.
+
+**El volumen no cambia** al correr la punta: sigue siendo largo × ancho × alto ÷ 6, porque la punta se mantiene a la misma distancia de la base. Sí puede cambiar el volumen **del pozo**, si la nueva forma ocupa otro lugar respecto de las demás piezas.
+
+> Si la pieza está acostada o girada, el «Alto (H)» puede quedar horizontal: es la distancia de la base a la punta.
+
+
+![Modo Estirar: puntos amarillos sobre las caras de la rampa](img/manual/modo-estirar.webp)
+
+
 ### Espejo
 
 **Espejo** invierte la pieza seleccionada, como si se la viera en un espejo, **sin moverla de lugar**. Sirve, por ejemplo, para dar vuelta una rampa o pasar una pieza armada para babor a estribor.
+
+
+![Una cuña antes y después de espejarla en eslora: el filo pasa al otro extremo y el centro no se mueve](img/manual/espejo-concepto.svg)
+
 
 1. Seleccioná la pieza.
 2. Tocá **Espejo** en la barra flotante de abajo del visor (o la tecla **M**).
@@ -278,7 +329,11 @@ En la barra flotante de abajo del visor hay tres modos:
 
 Con el panel abierto, también funcionan las teclas **X**, **Y** y **Z**. Los mismos botones están en el inspector, en **Orientación y giro**.
 
-- Las medidas y el volumen de la pieza no cambian. Solo cambian sus giros (y, en la **Piramidal**, se intercambian el largo y el ancho, porque así se arma su reflejo).
+
+![El panel Espejo abierto sobre la barra del visor, con los botones X Eslora, Y Puntal y Z Manga](img/manual/espejo.webp)
+
+
+- Las medidas y el volumen de la pieza no cambian. Solo cambian sus giros (y, en la **Piramidal**, se intercambian el largo y el ancho, junto con sus desvíos, porque así se arma su reflejo).
 - Espejar dos veces sobre el mismo eje deja la pieza como estaba. También se puede **deshacer**.
 - Para tener la pieza **en los dos costados**, primero **Duplicala** y después espejá la copia y cambiá su ubicación.
 - Una pieza **fijada** no se puede espejar.
@@ -308,6 +363,10 @@ En **Componentes del pozo** (en tablet y teléfono, en **Piezas**) están todas 
 | **Pin** | **Fijar** la pieza: ya no se puede mover, girar ni cambiar sus medidas. Útil para no arruinar por accidente el cuerpo principal una vez medido. Se puede renombrar, duplicar o eliminar. |
 
 Arriba de la lista están **Mostrar todo** y **Ocultar todo**.
+
+
+<img src="img/manual/lista-piezas.webp" alt="Lista de componentes del pozo con el ojo y el pin de cada pieza; el cuerpo principal está fijado" width="380">
+
 
 ### Duplicar y eliminar
 
@@ -364,11 +423,19 @@ Al final, el volumen debe dar **85,87 m³**.
 2. Con un factor de captura de 0,85 t/m³, la **captura estimada** es **72,99 t** (85,87 × 0,85).
 3. Volvé a **Edición** para seguir trabajando.
 
+
+![Vista previa del pozo de ejemplo: el hueco de la columna arriba y el corte de la rampa abajo, del lado de proa](img/manual/vista-previa.webp)
+
+
 ---
 
 ## 9. Leer el resultado
 
 En el centro de la barra superior:
+
+
+![Barra superior con buque y pozo, volumen del pozo, captura estimada y botones](img/manual/barra-superior.webp)
+
 
 - **Volumen del pozo:** el volumen real del sólido, en m³.
 - **Captura estimada:** volumen × factor, en toneladas. Debajo se ve el factor usado.
@@ -393,6 +460,10 @@ Al lado del título del volumen puede aparecer una etiqueta:
 | **Sólido** | Vista normal |
 | **Rayos X** | Piezas transparentes, para ver lo que queda adentro |
 | **Alambre** | Solo las aristas, para ver la estructura |
+
+
+![Estilo Rayos X: la caja transparente deja ver la columna y la rampa que restan](img/manual/rayos-x.webp)
+
 
 ---
 
@@ -437,6 +508,10 @@ Se descarga un archivo `.sqlite` con **todos** los buques, pozos y piezas. Si pa
 ### Recuperar un respaldo o pasar los datos a otro equipo
 
 En el menú de respaldos (ícono de reloj junto a **Respaldar DB**, o **Más** en tablet y teléfono), tocá **Importar .sqlite** y elegí el archivo.
+
+
+<img src="img/manual/respaldos.webp" alt="Menú de respaldos: exportar, importar y copias automáticas para restaurar" width="340">
+
 
 > **Importar reemplaza todos los datos actuales** por los del archivo. Antes, la app guarda una copia de los datos actuales, por si te equivocás.
 

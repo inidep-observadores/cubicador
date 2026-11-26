@@ -87,6 +87,8 @@ CREATE TABLE IF NOT EXISTS bloques (
     rot_x REAL DEFAULT 0, rot_y REAL DEFAULT 0, rot_z REAL DEFAULT 0,  -- radianes
     volumen_individual REAL DEFAULT 0.0,
     fijada INTEGER DEFAULT 0,     -- 1: no se puede mover ni cambiar sus medidas
+    desvio_largo REAL DEFAULT 0,  -- piramidal: corrimiento del vértice
+    desvio_ancho REAL DEFAULT 0,
     FOREIGN KEY (pozo_id) REFERENCES pozos (id) ON DELETE CASCADE
 );
 ```
@@ -97,6 +99,7 @@ CREATE TABLE IF NOT EXISTS bloques (
 - **v1:** los trapezoides pasaron a tener el largo sobre X (se compensa su rotación) y cada pozo se apoya en `y = 0` moviendo todas sus piezas juntas, sin cambiar el volumen.
 - **v2:** el factor de captura pasa a ser del buque; se toma el que tenía su primer pozo.
 - **v3:** las piezas tienen la columna `fijada`.
+- **v4:** columnas `desvio_largo` y `desvio_ancho` (corrimiento del vértice de la piramidal; 0 en las piezas anteriores).
 - Una base de una versión más nueva de la aplicación se rechaza, para no dañarla.
 
 ---

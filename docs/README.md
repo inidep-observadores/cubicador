@@ -65,6 +65,12 @@ npm run build
 
 # Regenerar los íconos de la PWA
 npm run icons
+
+# Regenerar las imágenes del manual (docs/img/manual), con `npm run dev` andando
+npm run capturas -- http://localhost:5173
+node scripts/diagramas-manual.mjs
 ```
+
+Las capturas se toman con Chrome o Edge instalados (o el que indique `CHROME_PATH`), en un perfil temporal con los datos de ejemplo: no tocan los datos del navegador de uso diario.
 
 Para publicar en un subdirectorio, ver [02. Arquitectura · Publicación](./02-arquitectura-y-stack.md#8-publicación).

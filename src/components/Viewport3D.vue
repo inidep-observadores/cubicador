@@ -244,7 +244,7 @@ import { formatDecimal } from '../services/decimal'
 import ModelModeToggle from './ModelModeToggle.vue'
 import { layout, openManual } from '../services/layout'
 import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown, FlipHorizontal2, X, BookOpen } from 'lucide-vue-next'
-import { getHandles, supportsStretch, dragDistance, resolveStretch } from '../services/stretch'
+import { getHandles, singleAxisHandles, supportsStretch, dragDistance, resolveStretch } from '../services/stretch'
 import { EJES_ESPEJO } from '../services/mirror'
 
 const store = useEditorStore()
@@ -316,6 +316,8 @@ let stretchDrag = null // { start, handle, point, dir, d0, pointerId }
 const stretchLabel = ref(null) // { text, x, y } mientras se arrastra
 const handleGeometry = new THREE.SphereGeometry(1, 16, 12)
 const handleMaterial = new THREE.MeshBasicMaterial({ color: 0xfbbf24, depthTest: false, transparent: true })
+// Tirador del vértice (piramidal): otro color, porque corre el vértice sin cambiar el volumen
+const handleVertexMaterial = new THREE.MeshBasicMaterial({ color: 0x34d399, depthTest: false, transparent: true })
 const handleActiveMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true })
 const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
 
@@ -347,6 +349,7 @@ onBeforeUnmount(() => {
   clearHighlight()
   handleGeometry.dispose()
   handleMaterial.dispose()
+  handleVertexMaterial.dispose()
   handleActiveMaterial.dispose()
   highlightMaterial.dispose()
   clearScene()
@@ -919,8 +922,11 @@ function showHighlight(faces) {
 
 function addHandles(block) {
   for (const handle of getHandles(block)) {
-    const active = stretchDrag?.handle.id === handle.id
-    const mesh = new THREE.Mesh(handleGeometry, active ? handleActiveMaterial : handleMaterial)
+    const activeId = stretchDrag?.handle?.id
+    const active = activeId === handle.id || handle.axes?.some(x => x.id === activeId) ||
+      (handle.axes && stretchDrag?.vertex)
+    const idle = handle.axes ? handleVertexMaterial : handleMaterial
+    const mesh = new THREE.Mesh(handleGeometry, active ? handleActiveMaterial : idle)
     mesh.position.copy(handle.worldPoint)
     mesh.renderOrder = 999
     mesh.userData = { handle }
@@ -933,7 +939,11 @@ function scaleHandles() {
   if (!camera) return
   const factor = layout.isTouch ? 0.016 : 0.01
   for (const mesh of handlesGroup.children) {
-    mesh.scale.setScalar(camera.position.distanceTo(mesh.position) * factor)
+    const { handle } = mesh.userData
+    const size = camera.position.distanceTo(handle.worldPoint) * factor
+    mesh.scale.setScalar(size)
+    mesh.position.copy(handle.worldPoint)
+    if (handle.lift) mesh.position.addScaledVector(handle.worldDir, size * 3)
   }
 }
 
@@ -971,27 +981,58 @@ function handleAt(event) {
 function onHandleDown(event) {
   if (event.target !== canvasRef.value || event.button !== 0 || !event.isPrimary) return
   if (store.transformMode !== 'stretch' || !store.selectedBlock || store.selectedBlock.fijada) return
-  const handle = handleAt(event)
-  if (!handle) return
-  const point = handle.worldPoint.clone()
-  const dir = handle.worldDir.clone()
-  const d0 = dragDistance(point, dir, pointerRay(event))
-  if (d0 === null) return
+  const picked = handleAt(event)
+  if (!picked) return
+  // En el vértice la dirección se decide con el primer movimiento
+  const vertex = picked.axes ? picked : null
+  const drag = vertex
+    ? { vertex, handle: null, x: event.clientX, y: event.clientY, ray: pointerRay(event).clone() }
+    : startAxisDrag(picked, pointerRay(event))
+  if (!drag) return
 
   event.stopPropagation() // que la cámara no orbite
   event.preventDefault()
   store.beginStretch()
-  stretchDrag = { start: { ...store.selectedBlock }, handle, point, dir, d0, pointerId: event.pointerId }
+  stretchDrag = { start: { ...store.selectedBlock }, ...drag, pointerId: event.pointerId }
   orbitControls.enabled = false
   window.addEventListener('pointermove', onHandleMove)
   window.addEventListener('pointerup', stopStretch)
   window.addEventListener('pointercancel', stopStretch)
-  updateStretchLabel(stretchDrag.start, handle)
+  if (drag.handle) updateStretchLabel(stretchDrag.start, drag.handle)
   renderBlocks()
+}
+
+function startAxisDrag(handle, ray) {
+  const point = handle.worldPoint.clone()
+  const dir = handle.worldDir.clone()
+  const d0 = dragDistance(point, dir, ray)
+  return d0 === null ? null : { handle, point, dir, d0 }
+}
+
+/** Vértice: elige la dirección que en pantalla más acompaña al puntero. */
+function chooseVertexAxis(event) {
+  const dx = event.clientX - stretchDrag.x
+  const dy = event.clientY - stretchDrag.y
+  if (Math.hypot(dx, dy) < 6) return false
+  let best = null
+  for (const axis of stretchDrag.vertex.axes) {
+    const a = toScreen(axis.worldPoint)
+    const b = toScreen(axis.worldPoint.clone().add(axis.worldDir))
+    const length = Math.hypot(b.x - a.x, b.y - a.y)
+    // Casi de punta hacia la cámara: no se puede arrastrar en esa dirección
+    if (length < 4) continue
+    const score = Math.abs((b.x - a.x) * dx + (b.y - a.y) * dy) / length
+    const drag = startAxisDrag(axis, stretchDrag.ray)
+    if (drag && (!best || score > best.score)) best = { score, drag }
+  }
+  if (!best) return false
+  Object.assign(stretchDrag, best.drag)
+  return true
 }
 
 function onHandleMove(event) {
   if (!stretchDrag || event.pointerId !== stretchDrag.pointerId) return
+  if (!stretchDrag.handle && !chooseVertexAxis(event)) return
   const { start, handle, point, dir, d0 } = stretchDrag
   const t = dragDistance(point, dir, pointerRay(event))
   if (t === null) return
@@ -1011,7 +1052,7 @@ function onHandleMove(event) {
 
 function updateStretchLabel(block, handle) {
   const param = GEOMETRY_TYPES[block.tipo_figura].params.find(p => p.key === handle.param)
-  const current = getHandles(block).find(x => x.id === handle.id)
+  const current = singleAxisHandles(block).find(x => x.id === handle.id)
   const { x, y } = toScreen(current.worldPoint)
   stretchLabel.value = { text: `${param.label}: ${formatDecimal(Number(block[handle.param].toFixed(2)))} m`, x, y }
 }

@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import * as THREE from 'three'
 import { GEOMETRY_TYPES } from '../src/services/geometryCatalog.js'
-import { getBlockBounds, snapBlockToBounds } from '../src/services/csgService.js'
-import { getHandles, applyStretch, resolveStretch, dragDistance, supportsStretch } from '../src/services/stretch.js'
+import { getBlockBounds, snapBlockToBounds, calculateGeometryVolume } from '../src/services/csgService.js'
+import { getHandles, singleAxisHandles, applyStretch, resolveStretch, dragDistance, supportsStretch } from '../src/services/stretch.js'
 
 const bloque = (id, tipo_figura, extra = {}) => ({
   id, tipo_figura,
@@ -22,7 +22,7 @@ for (const tipo of FIGURAS) {
   test(`estirar ${tipo}: cada tirador mueve su cara y respeta la cara opuesta, también girada`, () => {
     const start = bloque(1, tipo, { pos_x: 1, pos_y: 0.5, pos_z: -2, rot_y: Math.PI })
     const antes = getBlockBounds(start)
-    for (const handle of getHandles(start)) {
+    for (const handle of singleAxisHandles(start).filter(h => !h.param.startsWith('desvio'))) {
       const d = 0.5
       const fin = applyStretch(start, handle, d)
       casi(fin[handle.param], start[handle.param] + d * handle.factor, handle.id + ' medida')
@@ -86,4 +86,28 @@ test('arrastre: distancia sobre la dirección del tirador según el rayo del pun
   const ray = new THREE.Ray(new THREE.Vector3(3, 10, 0), new THREE.Vector3(0, -1, 0))
   casi(dragDistance(new THREE.Vector3(1, 0, 0), new THREE.Vector3(1, 0, 0), ray), 2, 'distancia')
   assert.equal(dragDistance(new THREE.Vector3(), new THREE.Vector3(0, 1, 0), ray), null)
+})
+
+test('piramidal: el vértice se corre en paralelo a la base sin cambiar el volumen', () => {
+  const def = GEOMETRY_TYPES.piramidal
+  const start = bloque(1, 'piramidal', { largo: 2, ancho: 1.75, alto: 6, rot_z: Math.PI / 2 })
+  const vertice = getHandles(start).find(h => h.id === 'vertice')
+  assert.deepEqual(vertice.axes.map(a => a.param), ['desvio_largo', 'desvio_ancho'])
+  for (const axis of vertice.axes) {
+    for (const d of [1.5, -0.75]) {
+      const fin = applyStretch(start, axis, d)
+      casi(fin[axis.param], d, 'desvío')
+      casi(def.calculateVolume(fin), def.calculateVolume(start), 'fórmula')
+      casi(calculateGeometryVolume(def.createGeometry(fin)), def.calculateVolume(fin), 'malla')
+      // La base no se mueve: solo el vértice
+      const nuevo = getHandles(fin).find(h => h.id === 'vertice')
+      casi(nuevo.worldPoint.distanceTo(vertice.worldPoint), Math.abs(d), 'recorrido del vértice')
+    }
+  }
+})
+
+test('piramidal: el vértice se arrastra a valores negativos, con cuadrícula', () => {
+  const start = bloque(1, 'piramidal')
+  const axis = getHandles(start).find(h => h.id === 'vertice').axes[0]
+  casi(resolveStretch(start, axis, -0.8, []).block.desvio_largo, -0.75, 'negativo')
 })

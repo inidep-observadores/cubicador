@@ -6,6 +6,9 @@ import { GEOMETRY_TYPES } from './geometryCatalog.js'
  * Modo "Estirar": cada tirador está sobre una cara y cambia una medida de la
  * figura. La pieza sigue siendo la misma figura, así que su fórmula no cambia.
  *
+ * El tirador de vértice (piramidal) tiene dos direcciones posibles, en `axes`:
+ * el arrastre se queda con la que más se parezca al movimiento del puntero.
+ *
  * En todos los tiradores la cara arrastrada se mueve exactamente `d` metros en
  * la dirección `dir`:
  *  - factor: cuánto cambia la medida por metro (1: cara opuesta fija;
@@ -32,6 +35,9 @@ const bottom = b => h('abajo', 'alto', [0, 0, 0], [0, -1, 0], 1, [0, -1, 0])
 const radial = (param, y, idPrefix) => [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([sx, sz]) => b =>
   h(`${idPrefix}${sx},${sz}`, param, [sx * b[param] / 2, y(b), sz * b[param] / 2], [sx, 0, sz], 2))
 
+// Vértice superior de la piramidal, en ejes locales
+const apex = b => [-b.largo / 2 + (b.desvio_largo || 0), b.alto, -b.ancho / 2 + (b.desvio_ancho || 0)]
+
 const HANDLES = {
   caja: [alongX(1, mid), alongX(-1, mid), alongZ(1, mid), alongZ(-1, mid), top(), bottom],
   // x+: cara vertical · x-: filo · arriba: borde superior de la cara vertical
@@ -40,11 +46,20 @@ const HANDLES = {
     alongZ(1, b => b.alto / 4, b => b.largo / 4), alongZ(-1, b => b.alto / 4, b => b.largo / 4),
     top(b => b.largo / 2)
   ],
-  // Vértice de ángulos rectos en (-L/2, 0, -W/2)
+  // Vértice de ángulos rectos de la base en (-L/2, 0, -W/2)
   piramidal: [
-    alongX(-1, b => b.alto / 3, 0), alongX(1, floor, 0),
-    alongZ(-1, b => b.alto / 3), alongZ(1, floor, b => -b.largo / 2),
-    top(b => -b.largo / 2, b => -b.ancho / 2)
+    b => alongX(-1, () => b.alto / 3, (b.desvio_ancho || 0) / 3)(b), alongX(1, floor, 0),
+    alongZ(-1, b => b.alto / 3, b => (b.desvio_largo || 0) / 3), alongZ(1, floor, b => -b.largo / 2),
+    // El de altura se dibuja un poco más allá, para dejar libre el vértice
+    b => ({ ...top(() => apex(b)[0], () => apex(b)[2])(b), lift: true }),
+    b => ({
+      id: 'vertice',
+      point: apex(b),
+      axes: [
+        h('vertice-l', 'desvio_largo', apex(b), [1, 0, 0]),
+        h('vertice-a', 'desvio_ancho', apex(b), [0, 0, 1])
+      ]
+    })
   ],
   cilindro: [...radial('diametro_d', mid, 'd'), top(), bottom],
   tronco_cono: [
@@ -70,14 +85,18 @@ export function supportsStretch(block) {
 
 /** Tiradores de una pieza, con posición y dirección en coordenadas del mundo. */
 export function getHandles(block) {
-  return (HANDLES[block?.tipo_figura] || []).map(make => {
-    const handle = make(block)
-    return {
-      ...handle,
-      worldPoint: new THREE.Vector3(...handle.point).applyEuler(euler(block)).add(origin(block)),
-      worldDir: new THREE.Vector3(...handle.dir).normalize().applyEuler(euler(block))
-    }
+  const toWorld = handle => ({
+    ...handle,
+    worldPoint: new THREE.Vector3(...handle.point).applyEuler(euler(block)).add(origin(block)),
+    ...(handle.dir && { worldDir: new THREE.Vector3(...handle.dir).normalize().applyEuler(euler(block)) }),
+    ...(handle.axes && { axes: handle.axes.map(toWorld) })
   })
+  return (HANDLES[block?.tipo_figura] || []).map(make => toWorld(make(block)))
+}
+
+/** Todos los tiradores de una sola dirección (los de vértice, desplegados). */
+export function singleAxisHandles(block) {
+  return getHandles(block).flatMap(x => x.axes || [x])
 }
 
 /**
@@ -124,7 +143,7 @@ export function resolveStretch(start, handle, rawD, others, { snap = true, step 
   const startValue = start[handle.param]
   const minD = (min - startValue) / handle.factor
 
-  const world = getHandles(start).find(x => x.id === handle.id)
+  const world = singleAxisHandles(start).find(x => x.id === handle.id)
   const axis = AXES.find(k => Math.abs(world.worldDir[k]) > 0.999)
 
   let face = null

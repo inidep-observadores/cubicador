@@ -46,7 +46,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,wasm}'],
         cleanupOutdatedCaches: true,
         // Workers de SQLite WASM que esta app no usa (modo "opfs" y API Worker1):
         // se publican porque la librería los referencia, pero no hace falta cachearlos

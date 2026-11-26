@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 340" width="860" height="340" role="img" aria-label="Ejes del buque: X hacia proa, Y hacia arriba, Z hacia babor" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title>Ejes del buque: X hacia proa, Y hacia arriba, Z hacia babor</title>
+  <rect width="860" height="340" rx="14" fill="#0f172a"/>
+  <text x="430" y="32" font-size="16" fill="#cbd5e1" text-anchor="middle" font-weight="700">Los tres ejes, con la orientación del buque</text>
+  <path d="M60,135 L320,135 Q400,150 425,190 Q400,230 320,245 L60,245 Q45,190 60,135 Z" fill="#111c33" stroke="#334155" stroke-width="2"/>
+  <line x1="45" y1="190" x2="425" y2="190" stroke="#334155" stroke-dasharray="6 5"/>
+  <rect x="170" y="155" width="90" height="70" rx="4" fill="#0ea5e9" fill-opacity="0.35" stroke="#0ea5e9" stroke-width="1.5"/>
+  <circle cx="215" cy="190" r="5" fill="#cbd5e1"/>
+  <defs>
+    <marker id="fx" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#fb7185"/></marker>
+    <marker id="fy" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#34d399"/></marker>
+    <marker id="fz" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#38bdf8"/></marker>
+  </defs>
+  <line x1="215" y1="190" x2="310" y2="190" stroke="#fb7185" stroke-width="3" marker-end="url(#fx)"/>
+  <line x1="215" y1="190" x2="215" y2="105" stroke="#38bdf8" stroke-width="3" marker-end="url(#fz)"/>
+  <text x="318" y="182" font-size="14" fill="#fb7185" text-anchor="start" font-weight="700">X+</text>
+  <text x="225" y="102" font-size="14" fill="#38bdf8" text-anchor="start" font-weight="700">Z+</text>
+  <text x="380" y="212" font-size="13" fill="#94a3b8" text-anchor="middle" font-weight="700">PROA</text>
+  <text x="90" y="212" font-size="13" fill="#94a3b8" text-anchor="middle" font-weight="700">POPA</text>
+  <text x="130" y="120" font-size="13" fill="#94a3b8" text-anchor="middle" font-weight="700">BABOR</text>
+  <text x="230" y="270" font-size="13" fill="#94a3b8" text-anchor="middle" font-weight="700">ESTRIBOR</text>
+  <text x="230" y="300" font-size="14" fill="#cbd5e1" text-anchor="middle" font-weight="700">Planta (vista desde arriba)</text>
+  <text x="230" y="320" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="400">El pozo azul y su origen (0, 0, 0)</text>
+  <path d="M510,140 L810,140 L790,240 Q720,260 540,250 L510,140 Z" fill="#111c33" stroke="#334155" stroke-width="2"/>
+  <rect x="600" y="155" width="90" height="70" rx="3" fill="#0ea5e9" fill-opacity="0.35" stroke="#0ea5e9" stroke-width="1.5"/>
+  <line x1="490" y1="225" x2="830" y2="225" stroke="#334155" stroke-dasharray="6 5"/>
+  <circle cx="645" cy="225" r="5" fill="#cbd5e1"/>
+  <line x1="645" y1="225" x2="740" y2="225" stroke="#fb7185" stroke-width="3" marker-end="url(#fx)"/>
+  <line x1="645" y1="225" x2="645" y2="110" stroke="#34d399" stroke-width="3" marker-end="url(#fy)"/>
+  <text x="748" y="218" font-size="14" fill="#fb7185" text-anchor="start" font-weight="700">X+</text>
+  <text x="655" y="112" font-size="14" fill="#34d399" text-anchor="start" font-weight="700">Y+</text>
+  <text x="815" y="242" font-size="12" fill="#94a3b8" text-anchor="end" font-weight="400">piso (Y = 0)</text>
+  <text x="660" y="300" font-size="14" fill="#cbd5e1" text-anchor="middle" font-weight="700">Costado (vista desde babor)</text>
+  <text x="660" y="320" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="400">Y mide la altura desde el piso</text>
+</svg>

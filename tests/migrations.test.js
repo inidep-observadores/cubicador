@@ -158,3 +158,12 @@ test('migración v3: las piezas existentes quedan sin fijar', () => {
   assert.equal(migrateDatabase(db), true)
   assert.equal(db.exec('SELECT fijada FROM bloques')[0].values[0][0], 0)
 })
+
+test('migración v4: agrega el desvío del vértice en 0 sin tocar las piezas', () => {
+  const db = baseLegacy()
+  migrateDatabase(db)
+  for (const b of bloques(db, 1)) {
+    assert.equal(b.desvio_largo, 0)
+    assert.equal(b.desvio_ancho, 0)
+  }
+})

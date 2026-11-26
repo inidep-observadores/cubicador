@@ -45,6 +45,8 @@ Las fórmulas se validaron contra la ficha técnica original y su versión redib
 
 ---
 
+> **Vértice de la piramidal:** puede desplazarse en paralelo a la base (`desvio_largo`, `desvio_ancho`) sin cambiar la fórmula, porque su distancia a la base no varía (principio de Cavalieri).
+
 ## 2. Requisitos de Construcción de Mallas para CSG
 
 Para que un motor booleano funcione de manera sólida y no genere agujeros ni inversiones de fase, cada malla debe cumplir estrictamente dos condiciones topológicas:

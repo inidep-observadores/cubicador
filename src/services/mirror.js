@@ -29,7 +29,7 @@ const SWAP_XZ = new THREE.Matrix4().set(
 
 // Simetría propia de cada figura (en sus ejes locales) y medidas que intercambia
 const SIMETRIA = {
-  piramidal: { matrix: SWAP_XZ, swap: ['largo', 'ancho'] },
+  piramidal: { matrix: SWAP_XZ, swap: [['largo', 'ancho'], ['desvio_largo', 'desvio_ancho']] },
   elipsoide: { matrix: flip('x') }
 }
 const SIMETRIA_POR_DEFECTO = { matrix: flip('z') }
@@ -57,10 +57,9 @@ export function mirrorBlock(block, axis) {
   const e = new THREE.Euler().setFromRotationMatrix(giro)
 
   const out = { ...block, rot_x: limpio(e.x), rot_y: limpio(e.y), rot_z: limpio(e.z) }
-  if (sim.swap) {
-    const [a, b] = sim.swap
-    out[a] = block[b]
-    out[b] = block[a]
+  for (const [a, b] of sim.swap || []) {
+    out[a] = block[b] || 0
+    out[b] = block[a] || 0
   }
 
   // Mantener el lugar: misma caja envolvente que antes

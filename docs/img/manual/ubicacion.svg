@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 300" width="860" height="300" role="img" aria-label="La ubicación indica el centro de la pieza en X y Z, y la altura de su piso en Y" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title>La ubicación indica el centro de la pieza en X y Z, y la altura de su piso en Y</title>
+  <rect width="860" height="300" rx="14" fill="#0f172a"/>
+  <text x="430" y="32" font-size="16" fill="#cbd5e1" text-anchor="middle" font-weight="700">Ubicación de una pieza: centro en X y Z, piso en Y</text>
+  <line x1="57" y1="230" x2="603" y2="230" stroke="#334155" stroke-width="2"/>
+  <line x1="330" y1="265.7" x2="330" y2="95.6" stroke="#334155" stroke-dasharray="5 5"/>
+  <text x="330" y="89.6" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="400">X = 0</text>
+  <rect x="372" y="125" width="168" height="84" rx="3" fill="#0ea5e9" fill-opacity="0.35" stroke="#0ea5e9" stroke-width="1.5"/>
+  <circle cx="456" cy="209" r="6" fill="#fbbf24"/>
+  <line x1="456" y1="209" x2="456" y2="109" stroke="#fbbf24" stroke-dasharray="4 4"/>
+  <text x="456" y="103" font-size="12" fill="#fbbf24" text-anchor="middle" font-weight="400">centro de la pieza</text>
+  <line x1="330" y1="253.1" x2="456" y2="253.1" stroke="#fb7185" stroke-width="2" marker-end="url(#ux)" marker-start="url(#ux)"/>
+  <line x1="330" y1="230" x2="330" y2="259.4" stroke="#fb7185" stroke-width="1"/>
+  <line x1="456" y1="209" x2="456" y2="259.4" stroke="#fb7185" stroke-width="1" stroke-dasharray="3 3"/>
+  <defs>
+    <marker id="ux" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#fb7185"/></marker>
+    <marker id="uy" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#34d399"/></marker>
+  </defs>
+  <text x="393" y="271.1" font-size="13" fill="#fb7185" text-anchor="middle" font-weight="700">Eje X = 3</text>
+  <line x1="565.2" y1="230" x2="565.2" y2="209" stroke="#34d399" stroke-width="2" marker-end="url(#uy)" marker-start="url(#uy)"/>
+  <line x1="540" y1="209" x2="573.6" y2="209" stroke="#34d399" stroke-width="1" stroke-dasharray="3 3"/>
+  <text x="571.5" y="224.5" font-size="13" fill="#34d399" text-anchor="start" font-weight="700">Eje Y = 0,5</text>
+  <text x="187.20000000000002" y="120.8" font-size="14" fill="#cbd5e1" text-anchor="middle" font-weight="700">Vista de costado</text>
+  <text x="187.20000000000002" y="142.8" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="400">Caja de 4 m de largo con</text>
+  <text x="187.20000000000002" y="160.8" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="400">Eje X = 3: va de 1 a 5 m.</text>
+  <text x="187.20000000000002" y="178.8" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="400">Eje Y = 0,5: su piso está</text>
+  <text x="187.20000000000002" y="196.8" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="400">a medio metro del piso.</text>
+  <text x="61.19999999999999" y="222" font-size="12" fill="#94a3b8" text-anchor="start" font-weight="400">piso (Y = 0)</text>
+</svg>

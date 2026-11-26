@@ -64,6 +64,7 @@ La pieza seleccionada muestra tiradores (puntos ámbar) sobre las caras que se p
 - **Cilindros:** los diámetros crecen hacia todos los lados; el alto mantiene fija la base (o la cara superior, desde abajo).
 - **Cilindro elíptico:** el largo con el extremo opuesto fijo; la sección crece simétrica.
 - Trapezoides y cuña irregular todavía no se pueden estirar: se editan con las cotas.
+- **Piramidal:** el tirador verde corre el vértice en paralelo a la base (`desvio_largo` o `desvio_ancho`, según hacia dónde se arrastre) sin cambiar el volumen; el de altura se dibuja un poco más allá del vértice.
 - Piezas fijadas u ocultas no muestran tiradores.
 
 ### Edición

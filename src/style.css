@@ -66,6 +66,9 @@ html, body, #app {
   .manual-content hr {
     @apply hidden;
   }
+  .manual-content img {
+    @apply block max-w-full h-auto mx-auto my-4 rounded-lg border border-slate-700 shadow-lg;
+  }
   .manual-content table {
     @apply block overflow-x-auto w-full my-3 text-xs border-collapse;
   }

@@ -344,6 +344,8 @@ export const useEditorStore = defineStore('editor', {
         b.rot_y = Number(b.rot_y) || 0
         b.rot_z = Number(b.rot_z) || 0
         b.fijada = Boolean(b.fijada)
+        b.desvio_largo = Number(b.desvio_largo) || 0
+        b.desvio_ancho = Number(b.desvio_ancho) || 0
         // Recalcular siempre: el valor guardado puede venir de una fórmula anterior
         const def = GEOMETRY_TYPES[b.tipo_figura]
         b.volumen_individual = def ? def.calculateVolume(b) : (Number(b.volumen_individual) || 0)
@@ -391,6 +393,8 @@ export const useEditorStore = defineStore('editor', {
         rot_z: 0,
         volumen_individual: 0,
         fijada: false,
+        desvio_largo: 0,
+        desvio_ancho: 0,
         ...def.rotacionInicial
       }
 
@@ -477,7 +481,7 @@ export const useEditorStore = defineStore('editor', {
       if (!b || b.fijada) return
       this.flushPendingHistory()
       const espejada = espejarPieza(b, axis)
-      for (const key of ['rot_x', 'rot_y', 'rot_z', 'pos_x', 'pos_y', 'pos_z', 'largo', 'ancho']) {
+      for (const key of ['rot_x', 'rot_y', 'rot_z', 'pos_x', 'pos_y', 'pos_z', 'largo', 'ancho', 'desvio_largo', 'desvio_ancho']) {
         if (key in espejada) b[key] = espejada[key]
       }
       b.volumen_individual = GEOMETRY_TYPES[b.tipo_figura].calculateVolume(b)
@@ -701,8 +705,9 @@ export const useEditorStore = defineStore('editor', {
       const INSERT = `
         INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion,
                              largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor,
-                             pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual, fijada)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual, fijada,
+                             desvio_largo, desvio_ancho)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       const statements = [{ sql: 'DELETE FROM bloques WHERE pozo_id = ?', params: [pozoId] }]
       this.bloques.forEach((b, idx) => {
         statements.push({
@@ -728,7 +733,9 @@ export const useEditorStore = defineStore('editor', {
             b.rot_y || 0,
             b.rot_z || 0,
             b.volumen_individual || 0,
-            b.fijada ? 1 : 0
+            b.fijada ? 1 : 0,
+            b.desvio_largo || 0,
+            b.desvio_ancho || 0
           ]
         })
       })

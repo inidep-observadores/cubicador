@@ -31,7 +31,15 @@ const marked = new Marked({
   }
 })
 
-// Sin la línea que dice dónde leer el manual: ya se está leyendo
-export const manualHtml = marked.parse(
-  fuente.replace(/^> \*\*Dónde leer este manual:\*\*.*$/m, '')
+// Imágenes del manual: el texto las nombra relativas a /docs (img/manual/...);
+// en la app se sirven como recursos del build
+const imagenes = Object.fromEntries(
+  Object.entries(import.meta.glob('../../docs/img/manual/*', { eager: true, query: '?url', import: 'default' }))
+    .map(([ruta, url]) => [ruta.replace('../../docs/', ''), url])
 )
+
+// Sin la línea que dice dónde leer el manual: ya se está leyendo
+export const manualHtml = marked
+  .parse(fuente.replace(/^> \*\*Dónde leer este manual:\*\*.*$/m, ''))
+  .replace(/<img src="(img\/[^"]+)"/g, (todo, ruta) =>
+    imagenes[ruta] ? `<img loading="lazy" src="${imagenes[ruta]}"` : todo)

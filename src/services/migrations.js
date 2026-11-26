@@ -6,7 +6,7 @@ import { getBlockBounds } from './csgService.js'
  * La versión se guarda en `PRAGMA user_version`; las bases anteriores a este
  * mecanismo tienen versión 0.
  */
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 // Figuras cuya malla se giró 90° en planta en la versión 1 (antes el largo iba sobre Z)
 const FIGURAS_GIRADAS_V1 = ['trapezoide', 'trapezoide_conico_1', 'trapezoide_conico_2']
@@ -72,6 +72,7 @@ export function migrateDatabase(db) {
     if (version < 1) migrarAV1(db)
     if (version < 2) migrarAV2(db)
     if (version < 3) migrarAV3(db)
+    if (version < 4) migrarAV4(db)
     setSchemaVersion(db)
     db.run('COMMIT')
   } catch (err) {
@@ -103,6 +104,14 @@ function migrarAV2(db) {
 function migrarAV3(db) {
   const columnas = db.exec('PRAGMA table_info(bloques)')[0].values.map(r => r[1])
   if (!columnas.includes('fijada')) db.run('ALTER TABLE bloques ADD COLUMN fijada INTEGER DEFAULT 0')
+}
+
+/** V4: el vértice de la piramidal se puede desplazar. */
+function migrarAV4(db) {
+  const columnas = db.exec('PRAGMA table_info(bloques)')[0].values.map(r => r[1])
+  for (const columna of ['desvio_largo', 'desvio_ancho']) {
+    if (!columnas.includes(columna)) db.run(`ALTER TABLE bloques ADD COLUMN ${columna} REAL DEFAULT 0`)
+  }
 }
 
 function leerBloques(db) {

@@ -75,3 +75,14 @@ test('cuña regular espejada en eslora: el filo pasa al otro extremo', () => {
   const xAlto = (b) => alto(b).reduce((s, p) => s + p.x, 0) / alto(b).length
   assert.ok(Math.sign(xAlto(cuna)) === -Math.sign(xAlto(fin)) && Math.abs(xAlto(cuna) + xAlto(fin)) < 1e-6)
 })
+
+for (const axis of ['x', 'y', 'z']) {
+  test(`espejo piramidal con el vértice desplazado sobre ${axis}`, () => {
+    const start = bloque('piramidal', { desvio_largo: 1.3, desvio_ancho: -0.4, rot_y: Math.PI / 6 })
+    const fin = mirrorBlock(start, axis)
+    const a = getBlockBounds(start)
+    const c = a.min[axis] + a.max[axis]
+    const reflejados = verticesEnBodega(start).map(p => { const q = p.clone(); q[axis] = c - q[axis]; return q })
+    assert.ok(mismaForma(reflejados, verticesEnBodega(fin), 1e-4))
+  })
+}

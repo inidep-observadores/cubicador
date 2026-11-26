@@ -17,7 +17,8 @@ import { computeCompositeData } from './csgCompute.js'
 // Campos que cambian la forma del sólido (el nombre, por ejemplo, no)
 const CAMPOS_GEOMETRICOS = [
   'tipo_figura', 'operacion', 'largo', 'ancho', 'alto', 'base_a', 'base_b',
-  'diametro_d', 'diametro_d_menor', 'pos_x', 'pos_y', 'pos_z', 'rot_x', 'rot_y', 'rot_z'
+  'diametro_d', 'diametro_d_menor', 'pos_x', 'pos_y', 'pos_z', 'rot_x', 'rot_y', 'rot_z',
+  'desvio_largo', 'desvio_ancho'
 ]
 const MAX_CACHE = 4
 
