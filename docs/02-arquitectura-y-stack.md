@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS bloques (
     pos_x REAL DEFAULT 0, pos_y REAL DEFAULT 0, pos_z REAL DEFAULT 0,  -- metros; pos_y = piso de la pieza
     rot_x REAL DEFAULT 0, rot_y REAL DEFAULT 0, rot_z REAL DEFAULT 0,  -- radianes
     volumen_individual REAL DEFAULT 0.0,
+    fijada INTEGER DEFAULT 0,     -- 1: no se puede mover ni cambiar sus medidas
     FOREIGN KEY (pozo_id) REFERENCES pozos (id) ON DELETE CASCADE
 );
 ```
@@ -95,6 +96,7 @@ CREATE TABLE IF NOT EXISTS bloques (
 - Al abrir o importar una base se valida que tenga las tablas y columnas de la aplicación, se guarda una copia y se aplican las migraciones pendientes dentro de una transacción.
 - **v1:** los trapezoides pasaron a tener el largo sobre X (se compensa su rotación) y cada pozo se apoya en `y = 0` moviendo todas sus piezas juntas, sin cambiar el volumen.
 - **v2:** el factor de captura pasa a ser del buque; se toma el que tenía su primer pozo.
+- **v3:** las piezas tienen la columna `fijada`.
 - Una base de una versión más nueva de la aplicación se rechaza, para no dañarla.
 
 ---

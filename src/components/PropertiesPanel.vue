@@ -73,6 +73,12 @@
         <div v-html="currentDef.svgDiagram" class="flex items-center justify-center"></div>
       </div>
 
+      <p v-if="currentBlock.fijada" class="flex items-center gap-2 text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-2">
+        <Pin class="w-3.5 h-3.5 shrink-0" />
+        Pieza fijada: no se puede mover ni cambiar sus medidas.
+      </p>
+
+      <fieldset :disabled="currentBlock.fijada" class="space-y-4 min-w-0 disabled:opacity-50">
       <!-- Parámetros dimensionales (Metros) -->
       <div class="border-t border-slate-800 pt-3">
         <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2.5 flex items-center justify-between">
@@ -217,6 +223,8 @@
         </div>
       </div>
 
+      </fieldset>
+
       <!-- Tarjeta de Desglose Matemático y Volumen -->
       <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
         <div class="flex items-center justify-between">
@@ -320,6 +328,16 @@
           <span class="text-[10px] font-mono text-slate-400 ml-2">
             {{ b.volumen_individual?.toFixed(2) }} m³
           </span>
+          <button
+            @click.stop="store.toggleBlockLock(b.id)"
+            :title="b.fijada ? 'Liberar la pieza' : 'Fijar: no permitir moverla ni cambiar sus medidas'"
+            :aria-label="(b.fijada ? 'Liberar ' : 'Fijar ') + b.nombre"
+            :aria-pressed="Boolean(b.fijada)"
+            class="shrink-0 ml-2 -mr-1 rounded hover:bg-slate-700 transition"
+            :class="[b.fijada ? 'text-amber-400 bg-amber-500/15' : 'text-slate-500 hover:text-slate-200', layout.isTouch ? 'p-1.5' : 'p-0.5']"
+          >
+            <Pin class="w-3.5 h-3.5" :class="b.fijada ? 'fill-current' : 'rotate-45'" />
+          </button>
         </div>
       </div>
     </div>
@@ -332,7 +350,7 @@ import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
 import DecimalInput from './DecimalInput.vue'
 import { layout } from '../services/layout'
-import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus, Eye, EyeOff } from 'lucide-vue-next'
+import { Sliders, BoxSelect, Copy, Trash2, RotateCw, Plus, Minus, Eye, EyeOff, Pin } from 'lucide-vue-next'
 
 const store = useEditorStore()
 

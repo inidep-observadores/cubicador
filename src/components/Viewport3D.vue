@@ -17,6 +17,7 @@
     >
       <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400 font-sans mb-1">
         {{ layout.isCompact ? 'Cotas' : 'Cotas del Bloque Seleccionado' }}
+        <span v-if="store.selectedBlock.fijada" class="text-amber-400">· fijada</span>
       </div>
       <label
         v-for="param in selectedDef.params"
@@ -26,11 +27,12 @@
         <span class="text-slate-400">{{ param.label }}:</span>
         <span class="flex items-center gap-1">
           <DecimalInput
+            :disabled="store.selectedBlock.fijada"
             :min="param.min"
             :step="param.step"
             :model-value="store.selectedBlock[param.key]"
             @update:model-value="store.updateBlockProperty(store.selectedBlock.id, param.key, $event)"
-            class="w-16 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-right font-bold text-amber-300 focus:outline-none focus:border-sky-500"
+            class="w-16 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-right font-bold text-amber-300 focus:outline-none focus:border-sky-500 disabled:opacity-50"
           />
           <span class="text-slate-500">m</span>
         </span>
@@ -679,7 +681,7 @@ function renderEditMode() {
     edgesGroup.add(edgesLine)
 
     if (isSelected) {
-      selectedMesh = mesh
+      selectedMesh = b.fijada ? null : mesh
       selectedParts = { mesh, edges: edgesLine, box: null }
 
       // Si está activo mostrar cotas, dibujar caja de cotas 3D

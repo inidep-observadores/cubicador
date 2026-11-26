@@ -84,6 +84,7 @@ En la barra de herramientas superior se puede conmutar entre:
 
 - **Modo Edición:** Permite ver y manipular cada bloque paramétrico de forma independiente, identificando uniones (azules) y sustracciones (rojas translúcidas).
 - **Modo Vista previa:** Muestra el sólido único resultante de unir y cortar todas las piezas, con sus aristas técnicas. Se calcula en segundo plano.
+- **Fijar piezas:** el pin de cada fila en "Componentes del Pozo" fija la pieza: no se puede mover, girar ni cambiar sus medidas (tampoco aparece el gizmo). Sí se puede renombrar, cambiar entre suma y resta, duplicar (la copia nace libre) y eliminar. El estado se guarda con la pieza y se puede deshacer.
 - **Ocultar piezas:** en "Componentes del Pozo", el ícono del ojo oculta o muestra cada pieza, y los botones "Mostrar todo" y "Ocultar todo" actúan sobre todas. Es solo visual: las piezas ocultas **siguen contando en el volumen**, no se aplica al modo Vista previa y se restablece al recargar la app.
 - **Sólido / Rayos X / Alambre:** 
   - *Sólido:* Superficie opaca con sombras.

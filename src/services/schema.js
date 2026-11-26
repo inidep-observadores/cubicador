@@ -50,6 +50,7 @@ export function initTables(db) {
       rot_z REAL DEFAULT 0,
 
       volumen_individual REAL DEFAULT 0.0,
+      fijada INTEGER DEFAULT 0, -- 1: no se puede mover ni cambiar sus medidas
       FOREIGN KEY (pozo_id) REFERENCES pozos (id) ON DELETE CASCADE
     );
   `)

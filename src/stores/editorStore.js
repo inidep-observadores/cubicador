@@ -342,6 +342,7 @@ export const useEditorStore = defineStore('editor', {
         b.rot_x = Number(b.rot_x) || 0
         b.rot_y = Number(b.rot_y) || 0
         b.rot_z = Number(b.rot_z) || 0
+        b.fijada = Boolean(b.fijada)
         // Recalcular siempre: el valor guardado puede venir de una fórmula anterior
         const def = GEOMETRY_TYPES[b.tipo_figura]
         b.volumen_individual = def ? def.calculateVolume(b) : (Number(b.volumen_individual) || 0)
@@ -388,6 +389,7 @@ export const useEditorStore = defineStore('editor', {
         rot_y: 0,
         rot_z: 0,
         volumen_individual: 0,
+        fijada: false,
         ...def.rotacionInicial
       }
 
@@ -404,6 +406,8 @@ export const useEditorStore = defineStore('editor', {
       // Nunca guardar NaN/Infinity: dejarían la pieza con volumen inválido
       if (typeof value === 'number' && !Number.isFinite(value)) return
       if (b[property] === value) return
+      // Una pieza fijada no se mueve ni cambia de medidas (el nombre sí se puede editar)
+      if (b.fijada && property !== 'nombre') return
       b[property] = value
       const def = GEOMETRY_TYPES[b.tipo_figura]
       if (def) {
@@ -429,6 +433,7 @@ export const useEditorStore = defineStore('editor', {
       if (!original) return
       const clon = JSON.parse(JSON.stringify(original))
       clon.id = this.nextBlockId()
+      clon.fijada = false
       clon.nombre = `${original.nombre} (Copia)`
       clon.orden = this.bloques.length + 1
       clon.pos_x += 1.0
@@ -453,6 +458,16 @@ export const useEditorStore = defineStore('editor', {
 
     hideAllBlocks() {
       this.hiddenBlockIds = [...new Set([...this.hiddenBlockIds, ...this.bloques.map(b => b.id)])]
+    },
+
+    /** Fija o libera una pieza. Entra en deshacer/rehacer. */
+    toggleBlockLock(blockId) {
+      const b = this.bloques.find(x => x.id === blockId)
+      if (!b) return
+      this.flushPendingHistory() // que una edición previa quede como paso aparte
+      b.fijada = !b.fijada
+      this.pushHistoryState()
+      this.saveBloquesToDb()
     },
 
     toggleBlockOperation(blockId) {
@@ -644,8 +659,8 @@ export const useEditorStore = defineStore('editor', {
       const INSERT = `
         INSERT INTO bloques (id, pozo_id, orden, nombre, tipo_figura, operacion,
                              largo, ancho, alto, base_a, base_b, diametro_d, diametro_d_menor,
-                             pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, volumen_individual, fijada)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       const statements = [{ sql: 'DELETE FROM bloques WHERE pozo_id = ?', params: [pozoId] }]
       this.bloques.forEach((b, idx) => {
         statements.push({
@@ -670,7 +685,8 @@ export const useEditorStore = defineStore('editor', {
             b.rot_x || 0,
             b.rot_y || 0,
             b.rot_z || 0,
-            b.volumen_individual || 0
+            b.volumen_individual || 0,
+            b.fijada ? 1 : 0
           ]
         })
       })

@@ -147,3 +147,14 @@ test('migración v2: el factor de captura pasa del pozo al buque', () => {
   assert.deepEqual(factores, [920, 800])
   assert.equal(getSchemaVersion(db), SCHEMA_VERSION)
 })
+
+test('migración v3: las piezas existentes quedan sin fijar', () => {
+  const db = new SQL.Database()
+  db.run(`CREATE TABLE buques (id INTEGER, nombre TEXT, densidad_estiba REAL);
+    CREATE TABLE pozos (id INTEGER, buque_id INTEGER, nombre TEXT, densidad_estiba REAL);
+    CREATE TABLE bloques (${COLS.split(', ').join(' REAL, ')} REAL);
+    INSERT INTO bloques (id, pozo_id) VALUES (1, 1);
+    PRAGMA user_version = 2`)
+  assert.equal(migrateDatabase(db), true)
+  assert.equal(db.exec('SELECT fijada FROM bloques')[0].values[0][0], 0)
+})
