@@ -85,17 +85,12 @@
         <div class="flex items-center justify-center gap-1 text-[10px] uppercase font-bold tracking-wider text-slate-400">
           <span>Volumen del Pozo</span>
           <span
-            v-if="volumeState === 'real'"
-            class="text-[9px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30"
-            title="Volumen espacial real considerando intersecciones y recortes 3D"
-          >Real 3D</span>
-          <span
-            v-else-if="volumeState === 'calculando'"
+            v-if="volumeState === 'calculando'"
             class="text-[9px] px-1 py-0.2 rounded bg-slate-700/60 text-slate-300 font-semibold border border-slate-600 animate-pulse"
             title="Calculando el volumen real 3D en segundo plano"
           >Calculando…</span>
           <span
-            v-else
+            v-else-if="volumeState === 'error'"
             class="text-[9px] px-1 py-0.2 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40"
             :title="store.csgError + '. El valor es aproximado: no considera solapamientos ni recortes.'"
           >⚠ Aproximado</span>

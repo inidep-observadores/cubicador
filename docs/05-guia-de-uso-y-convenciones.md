@@ -93,7 +93,7 @@ En la barra superior, junto a cada desplegable:
 
 La barra superior muestra el volumen del sólido que resulta de unir y cortar las piezas según su ubicación: lo que se superpone cuenta una sola vez y de cada corte se descuenta solo la parte que está dentro del pozo.
 
-- **Real 3D:** estado normal.
+- **Sin etiqueta:** estado normal.
 - **Calculando…:** el cálculo está en curso.
 - **⚠ Aproximado:** el cálculo 3D falló (la causa se ve al pasar el mouse). El valor sale de sumar y restar las fórmulas de las piezas, sin considerar su ubicación: hay que revisar las piezas antes de usarlo.
 
