@@ -25,6 +25,7 @@ La interfaz se adapta al tamaño de la pantalla:
 En tablet y teléfono, la barra inferior tiene: **Figuras** (agregar), **Piezas** (lista del pozo; al tocar una se abre su edición), **Editar** (la pieza seleccionada), **Deshacer**, **Rehacer** y **Más** (modo de visualización, cotas, imán, respaldos, instalación y versión). El selector Edición / Vista previa queda sobre el visor, arriba a la izquierda.
 
 ### Uso táctil
+- **Ayuda del visor** (arriba a la izquierda, salvo en el teléfono): controles del mouse y orientación de los ejes. Se pliega con un toque y la app recuerda la preferencia.
 - **Un dedo:** orbitar. **Dos dedos:** zoom y desplazamiento.
 - **Tocar una pieza:** seleccionarla. Arrastrar para orbitar no cambia la selección.
 - Con pantalla táctil, el gizmo de mover/rotar y los botones son más grandes.

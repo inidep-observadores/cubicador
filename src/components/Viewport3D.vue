@@ -14,9 +14,47 @@
       class="absolute z-20 left-1/2 -translate-x-1/2 bottom-16 pointer-events-none bg-slate-900/90 border border-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg text-center max-w-[90%]"
     >{{ stretchHint }}</div>
 
-    <!-- Modo compacto: Edición / Vista previa flotando sobre el visor -->
-    <div v-if="layout.isCompact" class="absolute top-2 left-2 z-20">
-      <ModelModeToggle :show-labels="!layout.isShort" />
+    <!-- Esquina superior izquierda, apilado: modo (compacto), ayuda y ejes -->
+    <div
+      class="absolute z-10 flex flex-col items-start gap-2 pointer-events-none"
+      :class="layout.isCompact ? 'top-2 left-2' : 'top-4 left-4'"
+    >
+      <ModelModeToggle v-if="layout.isCompact" :show-labels="!layout.isShort" class="pointer-events-auto" />
+
+      <!-- Ayuda plegable: controles del mouse y orientación de los ejes -->
+      <div v-if="!layout.isPhone" class="pointer-events-auto bg-slate-900/80 backdrop-blur border border-slate-800 rounded-lg text-slate-400">
+        <button
+          @click="toggleHelp"
+          :aria-expanded="helpOpen"
+          aria-controls="viewport-help"
+          :title="helpOpen ? 'Ocultar la ayuda' : 'Mostrar la ayuda'"
+          class="w-full flex items-center gap-1.5 px-2.5 text-[10px] font-bold uppercase tracking-wider hover:text-white transition rounded-lg"
+          :class="layout.isTouch ? 'py-2' : 'py-1'"
+        >
+          <CircleHelp class="w-3.5 h-3.5 text-sky-400" />
+          Ayuda
+          <ChevronDown class="w-3.5 h-3.5 ml-auto transition-transform" :class="{ '-rotate-90': !helpOpen }" />
+        </button>
+
+        <div v-show="helpOpen" id="viewport-help" class="border-t border-slate-800 px-2.5 py-1.5 space-y-1">
+          <!-- Controles del mouse (solo escritorio sin pantalla táctil) -->
+          <div v-if="layout.isWide && !layout.isTouch" class="text-[11px] flex items-center gap-3">
+            <span>🖱️ <strong>Click Izq:</strong> Orbitar</span>
+            <span>🖱️ <strong>Click Der:</strong> Paneo</span>
+            <span>📜 <strong>Rueda:</strong> Zoom</span>
+            <span>🎯 <strong>Click Pieza:</strong> Seleccionar</span>
+          </div>
+
+          <!-- Indicador náutico de orientación -->
+          <div class="text-[10px] flex items-center gap-2 font-mono">
+            <span class="text-rose-400 font-bold">X: Eslora{{ layout.isWide ? ' (Proa)' : '' }}</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-emerald-400 font-bold">Y: Puntal</span>
+            <span class="text-slate-600">|</span>
+            <span class="text-sky-400 font-bold">Z: Manga{{ layout.isWide ? ' (Babor/Estribor)' : '' }}</span>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Cotas del bloque seleccionado: editables, solo las medidas de su figura.
@@ -132,26 +170,6 @@
       </button>
     </div>
 
-    <!-- Indicador Náutico de Orientación -->
-    <div
-      v-if="!layout.isPhone"
-      class="absolute z-10 pointer-events-none text-[10px] text-slate-400 bg-slate-900/80 backdrop-blur px-2.5 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2 font-mono"
-      :class="layout.isCompact ? 'bottom-2 right-2' : 'bottom-4 right-4'"
-    >
-      <span class="text-rose-400 font-bold">X: Eslora{{ layout.isWide ? ' (Proa)' : '' }}</span>
-      <span class="text-slate-600">|</span>
-      <span class="text-emerald-400 font-bold">Y: Puntal</span>
-      <span class="text-slate-600">|</span>
-      <span class="text-sky-400 font-bold">Z: Manga{{ layout.isWide ? ' (Babor/Estribor)' : '' }}</span>
-    </div>
-
-    <!-- Ayuda de navegación con mouse (solo escritorio sin pantalla táctil) -->
-    <div v-if="layout.isWide && !layout.isTouch" class="absolute top-4 left-4 z-10 pointer-events-none text-[11px] text-slate-400 bg-slate-900/70 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-3">
-      <span>🖱️ <strong>Click Izq:</strong> Orbitar</span>
-      <span>🖱️ <strong>Click Der:</strong> Paneo</span>
-      <span>📜 <strong>Rueda:</strong> Zoom</span>
-      <span>🎯 <strong>Click Pieza:</strong> Seleccionar</span>
-    </div>
   </div>
 </template>
 
@@ -169,12 +187,31 @@ import DecimalInput from './DecimalInput.vue'
 import { formatDecimal } from '../services/decimal'
 import ModelModeToggle from './ModelModeToggle.vue'
 import { layout } from '../services/layout'
-import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal } from 'lucide-vue-next'
+import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown } from 'lucide-vue-next'
 import { getHandles, supportsStretch, dragDistance, resolveStretch } from '../services/stretch'
 
 const store = useEditorStore()
 const containerRef = ref(null)
 const canvasRef = ref(null)
+
+// Ayuda del visor: abierta por defecto; se recuerda si el usuario la pliega
+const HELP_KEY = 'cubicacion_ayuda_visor'
+function readHelpPreference() {
+  try {
+    return localStorage.getItem(HELP_KEY) !== 'cerrada'
+  } catch {
+    return true
+  }
+}
+const helpOpen = ref(readHelpPreference())
+function toggleHelp() {
+  helpOpen.value = !helpOpen.value
+  try {
+    localStorage.setItem(HELP_KEY, helpOpen.value ? 'abierta' : 'cerrada')
+  } catch {
+    // sin almacenamiento: solo dura esta sesión
+  }
+}
 
 const CAMERA_VIEWS = [
   { id: 'top', label: 'Planta', title: 'Vista en Planta (Cubierta superior)' },
