@@ -126,6 +126,7 @@ En la barra superior, junto a cada desplegable:
 | ↺ | Reiniciar el pozo, dejándolo con una caja base (se puede deshacer). |
 
 - **Factor de captura (t/m³):** se carga en cada buque y vale para todos sus pozos. También se abre haciendo clic en "Factor" debajo de la capacidad de captura.
+- **Calculadora del factor:** en el formulario del buque, **Calcular a partir de una captura** divide los kg (en toneladas) por el volumen ocupado; acepta el separador de miles en los kilos.
 - **Capacidad de captura estimada** = volumen del pozo × factor del buque.
 - **Eliminar** pide confirmación, indica cuántos pozos y piezas se borran y guarda antes una copia automática (se restaura desde el menú de respaldos). El borrado no se deshace con `Ctrl+Z`.
 

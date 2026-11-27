@@ -169,6 +169,7 @@ cubicador/
 │   │   ├── BottomNav.vue        # Barra inferior del modo compacto
 │   │   ├── DimensionOverlay.vue # Cotas dibujadas sobre el visor (SVG)
 │   │   ├── ExportImageDialog.vue # Elegir el fondo antes de exportar el PNG
+│   │   ├── FactorCalculator.vue # Factor de captura a partir de kg y m³
 │   │   ├── MeasurePanel.vue     # Panel de la herramienta Medir
 │   │   ├── ModelModeToggle.vue  # Edición / Vista previa
 │   │   ├── MoreMenu.vue         # Menú "Más" del modo compacto
@@ -186,6 +187,7 @@ cubicador/
 │   │   ├── dialog.js            # API de los diálogos (confirmDialog, promptDialog…)
 │   │   ├── dimensions.js        # Cotas automáticas, cotas a mano e imán de Medir
 │   │   ├── exportImage.js       # Colores, dibujo de cotas y descarga del PNG
+│   │   ├── factor.js            # Cálculo del factor de captura (t/m³)
 │   │   ├── geometryCatalog.js   # Las 10 figuras navales, fórmulas y mallas
 │   │   ├── install.js           # Instalación de la PWA
 │   │   ├── layout.js            # Tamaño de pantalla y panel abierto (diseño adaptable)

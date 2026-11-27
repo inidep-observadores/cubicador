@@ -8,7 +8,7 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="record-form-title"
-      class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-5 space-y-3 select-text"
+      class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-5 space-y-3 select-text max-h-full overflow-y-auto"
       @submit.prevent="save"
       @keydown.esc.prevent="close"
     >
@@ -25,6 +25,7 @@
           <DecimalInput v-model="data.factor" :min="0.001" :step="0.01" :class="FIELD" />
           <span class="block text-[11px] text-slate-500">Toneladas de captura por m³ de pozo. Se usa para estimar la capacidad de todos los pozos de este buque.</span>
         </label>
+        <FactorCalculator :volume="pozoVolume" @use="data.factor = $event" />
       </template>
 
       <label v-else class="block space-y-1">
@@ -65,6 +66,8 @@ import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { Trash2 } from 'lucide-vue-next'
 import { useEditorStore, DENSIDAD_POR_DEFECTO } from '../stores/editorStore'
 import DecimalInput from './DecimalInput.vue'
+import FactorCalculator from './FactorCalculator.vue'
+import { formatDecimal } from '../services/decimal'
 
 /** Alta, edición y baja de buques y pozos (según `store.recordForm`). */
 const FIELD = 'w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-sky-500'
@@ -79,6 +82,13 @@ const isBuque = computed(() => store.recordForm?.tipo === 'buque')
 const title = computed(() => {
   const what = isBuque.value ? 'buque' : 'pozo'
   return store.recordForm?.id ? `Editar ${what}` : `Nuevo ${what}`
+})
+
+// El volumen del pozo abierto solo sirve si el buque que se edita es el suyo
+const pozoVolume = computed(() => {
+  const { id } = store.recordForm ?? {}
+  if (!id || id !== store.selectedBuqueId || !store.selectedPozo || !(store.volumenTotal > 0)) return null
+  return { name: store.selectedPozo.nombre, text: formatDecimal(Number(store.volumenTotal.toFixed(2))) }
 })
 
 // Cargar los datos del registro cada vez que se abre el formulario

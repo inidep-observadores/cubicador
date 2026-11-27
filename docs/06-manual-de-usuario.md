@@ -187,6 +187,26 @@ Para cambiarlo: **✎** junto al buque, o clic en **"Factor: … t/m³"** debajo
 ![Formulario para editar el buque, con el nombre y el factor de captura](img/manual/formulario-buque.webp)
 
 
+**Cómo obtenerlo a partir de una captura conocida.** Si sabés cuántos kilos entraron en un pozo, la app hace la cuenta:
+
+1. Abrí el formulario del buque y tocá **Calcular a partir de una captura**.
+2. En **Captura (kg)** poné los kilos descargados (podés escribir 72000 o 72.000).
+3. En **Volumen ocupado (m³)** poné el volumen que ocuparon. Si es el del pozo que tenés abierto, tocá **Usar el volumen de…**.
+4. Revisá el resultado, tocá **Usar** y después **Guardar**.
+
+![Calculadora del factor, con los kilos, el volumen y el resultado](img/manual/calcular-factor.webp)
+
+> Factor (t/m³) = captura (kg) ÷ 1000 ÷ volumen ocupado (m³)
+
+Por ejemplo, 72.000 kg en un pozo de 90 m³ lleno: 72 ÷ 90 = **0,8 t/m³**.
+
+Para que el resultado sea confiable:
+
+- Si el pozo **no quedó lleno**, usá solo el volumen ocupado, no el total.
+- Con **varios pozos o mareas**, sumá todos los kilos y todos los metros cúbicos. No promedies los factores sueltos.
+- Usá siempre el mismo criterio de peso (por ejemplo, solo pescado, sin hielo ni cajones) y estimá después con ese criterio.
+- La app guarda **un solo factor por buque**: si cambiás de especie o de forma de estiba, revisalo.
+
 **Cómo obtenerlo a partir de una muestra:**
 
 > Factor (t/m³) = peso de la muestra (t) ÷ volumen de la muestra (m³)
