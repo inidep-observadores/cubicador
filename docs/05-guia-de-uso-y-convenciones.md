@@ -80,6 +80,10 @@ La pieza seleccionada muestra tiradores (puntos ámbar) sobre las caras que se p
 - **Automáticas:** en Edición, las de la pieza seleccionada en sus propios ejes; en Vista previa, las del pozo completo. Totales por eje y, si hay de 2 a 6 tramos, la cadena de parciales entre esquinas (vértices donde se juntan tres o más caras; las superficies curvas no generan quiebres).
 - **Medir (`D`):** cota entre dos puntos, directa o proyectada sobre un eje, con imán a esquinas y aristas. Se guarda por pozo; no sigue a las piezas ni entra en deshacer.
 
+### Exportar imagen (PNG)
+- Solo en Vista previa. Misma cámara, estilo y cotas que en pantalla; sin paneles ni botones. Fondo claro u oscuro (colores en `exportImage.js`).
+- Resolución de 2× a 3× la del visor, con un máximo de 4096 px de lado.
+
 ---
 
 ## 4. Snap Magnético vs. Ajuste Fino Manual

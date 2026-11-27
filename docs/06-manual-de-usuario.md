@@ -453,6 +453,17 @@ Al final, el volumen debe dar **85,87 m³**.
 
 ![Vista previa del pozo de ejemplo: el hueco de la columna arriba y el corte de la rampa abajo, del lado de proa](img/manual/vista-previa.webp)
 
+### Guardar la vista como imagen
+
+En **Vista previa**, debajo del botón **?** aparece el botón de **Exportar imagen** (verde, con una flecha hacia abajo). La app pregunta el fondo y descarga un archivo **PNG**:
+
+- **Fondo claro:** blanco con trazos oscuros, para imprimir o pegar en un informe.
+- **Fondo oscuro:** con los mismos colores que la pantalla.
+
+La imagen sale **como la estás viendo**: la misma cámara y zoom, el mismo estilo (Sólido, Rayos X o Alambre) y las cotas que estén a la vista, incluidas las que pusiste con **Medir**. No salen los paneles ni los botones. Antes de exportar, acomodá la vista; si no querés cotas, ocultalas con la regla.
+
+El archivo lleva el nombre del buque, del pozo y la fecha, y queda en la carpeta de descargas del dispositivo.
+
 
 ---
 

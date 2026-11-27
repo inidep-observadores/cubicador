@@ -14,6 +14,19 @@
       :class="layout.isPhone ? 'bottom-16 left-2 right-2' : (layout.isCompact ? 'top-2 right-[3.25rem] w-60' : 'top-4 right-14 w-64')"
     />
 
+    <!-- Vista previa: guardar lo que se ve como imagen (debajo del botón de ayuda) -->
+    <button
+      v-if="store.modelMode === 'solidoFinal'"
+      @click="exportOpen = true"
+      title="Exportar la vista como imagen PNG"
+      aria-label="Exportar imagen"
+      class="absolute z-10 flex items-center justify-center rounded-full bg-slate-900/80 backdrop-blur border border-slate-700 text-emerald-400 hover:text-white hover:bg-slate-800 shadow-lg transition"
+      :class="[layout.isCompact ? 'top-[3.25rem] right-2' : 'top-14 right-4', layout.isTouch ? 'w-9 h-9' : 'w-8 h-8']"
+    >
+      <ImageDown class="w-4 h-4" />
+    </button>
+    <ExportImageDialog v-if="exportOpen" @pick="exportImage" @close="exportOpen = false" />
+
     <!-- Medida en vivo mientras se estira -->
     <div
       v-if="stretchLabel"
@@ -263,12 +276,14 @@ import { useEditorStore } from '../stores/editorStore'
 import { GEOMETRY_TYPES } from '../services/geometryCatalog'
 import { snapBlockToBounds } from '../services/csgService'
 import { computeComposite } from '../services/csgClient'
-import { confirmDialog, dialogState } from '../services/dialog'
+import { confirmDialog, alertDialog, dialogState } from '../services/dialog'
+import { IMAGE_THEMES, exportScale, paintDimensions, imageFileName, downloadCanvas } from '../services/exportImage'
+import ExportImageDialog from './ExportImageDialog.vue'
 import DecimalInput from './DecimalInput.vue'
 import { formatDecimal } from '../services/decimal'
 import ModelModeToggle from './ModelModeToggle.vue'
 import { layout, openManual } from '../services/layout'
-import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown, FlipHorizontal2, X, BookOpen, PencilRuler } from 'lucide-vue-next'
+import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown, FlipHorizontal2, X, BookOpen, PencilRuler, ImageDown } from 'lucide-vue-next'
 import { getHandles, singleAxisHandles, supportsStretch, dragDistance, resolveStretch } from '../services/stretch'
 import { EJES_ESPEJO } from '../services/mirror'
 import { autoDimensions, manualDimension, toScreenShapes, snapPoint, findCorners, boundsOf } from '../services/dimensions'
@@ -329,6 +344,9 @@ function mirrorSelected(axis) {
 }
 
 let scene, camera, renderer, orbitControls, transformControls, resizeObserver
+// Piso y ejes; la imagen con fondo claro usa los suyos
+let screenDecor, lightDecor
+const exportOpen = ref(false)
 const blockMeshGroup = new THREE.Group()
 const csgMeshGroup = new THREE.Group()
 const edgesGroup = new THREE.Group()
@@ -400,6 +418,9 @@ onBeforeUnmount(() => {
   highlightMaterial.dispose()
   clearScene()
   disposeCaches()
+  for (const decor of [screenDecor, lightDecor]) {
+    decor?.children.forEach(o => { o.geometry.dispose(); o.material.dispose() })
+  }
   transformControls?.dispose()
   orbitControls?.dispose()
   renderer?.dispose()
@@ -591,7 +612,7 @@ async function confirmDeleteBlock(bloque) {
 
 function onKeyDown(e) {
   // Con un diálogo abierto, el teclado es del diálogo
-  if (dialogState.open || store.recordForm || layout.manualOpen) return
+  if (dialogState.open || store.recordForm || layout.manualOpen || exportOpen.value) return
   // Mientras se escribe en un campo, el teclado es del campo (incluido su propio Ctrl+Z)
   if (isEditable(e.target)) return
 
@@ -686,13 +707,8 @@ function initThree() {
   scene.add(dirLight2)
 
   // 5. Rejilla y Ejes (Piso del pozo)
-  const gridHelper = new THREE.GridHelper(40, 80, 0x0284c7, 0x1e293b)
-  gridHelper.position.y = 0
-  scene.add(gridHelper)
-
-  const axesHelper = new THREE.AxesHelper(3)
-  axesHelper.position.set(0, 0.01, 0)
-  scene.add(axesHelper)
+  screenDecor = floorDecor(IMAGE_THEMES.oscuro)
+  scene.add(screenDecor)
 
   // Grupos
   scene.add(blockMeshGroup)
@@ -1184,6 +1200,15 @@ function currentAutoDimensions() {
   }))
 }
 
+/** Cotas que se están mostrando (sin la que se está por marcar). */
+function visibleDimensions() {
+  if (!store.showDimensions && !store.measureMode) return []
+  // Midiendo, las cotas automáticas se apartan para no confundir
+  const dimensions = store.measureMode ? [] : currentAutoDimensions()
+  for (const cota of store.cotas) dimensions.push(manualDimension(cota))
+  return dimensions
+}
+
 function updateOverlay() {
   if (!containerRef.value) return
   if (!store.showDimensions && !store.measureMode) {
@@ -1192,9 +1217,7 @@ function updateOverlay() {
     return
   }
   const project = projector()
-  // Midiendo, las cotas automáticas se apartan para no confundir
-  const dimensions = store.measureMode ? [] : currentAutoDimensions()
-  for (const cota of store.cotas) dimensions.push(manualDimension(cota))
+  const dimensions = visibleDimensions()
 
   const markers = []
   if (store.measureMode) {
@@ -1273,6 +1296,101 @@ function resetMeasure() {
   measureStart.value = null
   measureHover = null
   requestRender()
+}
+
+// ---------------------------------------------------------------------------
+// Exportar imagen
+// ---------------------------------------------------------------------------
+function floorDecor(theme) {
+  const group = new THREE.Group()
+  group.add(new THREE.GridHelper(40, 80, ...theme.grid))
+  const axes = new THREE.AxesHelper(3)
+  axes.position.set(0, 0.01, 0)
+  axes.setColors(...theme.axes.map(c => new THREE.Color(c)))
+  group.add(axes)
+  return group
+}
+
+/** Materiales del sólido y sus aristas para la imagen con fondo claro. */
+function lightMaterials(viewMode) {
+  const theme = IMAGE_THEMES.claro
+  const solid = sharedMaterial(`png|${viewMode}`, () => {
+    if (viewMode === 'alambrico') return new THREE.MeshBasicMaterial({ color: theme.wireframe, wireframe: true })
+    const mat = compositeMaterial(viewMode).clone()
+    mat.color.set(theme.solid)
+    return mat
+  })
+  const edges = sharedMaterial('png|aristas', () => new THREE.LineBasicMaterial({ color: theme.edges }))
+  return { solid, edges }
+}
+
+/**
+ * Pinta en un canvas aparte lo que se ve (misma cámara, estilo y cotas), sin
+ * paneles ni botones. Todo ocurre en el mismo cuadro: la pantalla no parpadea.
+ */
+function snapshot(themeId) {
+  const theme = IMAGE_THEMES[themeId]
+  const width = containerRef.value.clientWidth
+  const height = containerRef.value.clientHeight
+  const scale = exportScale(width, height, window.devicePixelRatio)
+  const output = document.createElement('canvas')
+  output.width = Math.round(width * scale)
+  output.height = Math.round(height * scale)
+  const ctx = output.getContext('2d')
+
+  const pixelRatio = renderer.getPixelRatio()
+  const background = scene.background
+  const fogColor = scene.fog.color.clone()
+  const restore = []
+  try {
+    if (themeId === 'claro') {
+      scene.background = new THREE.Color(theme.background)
+      scene.fog.color.set(theme.background)
+      lightDecor ||= floorDecor(theme)
+      scene.add(lightDecor)
+      screenDecor.visible = false
+      const materials = lightMaterials(store.viewMode)
+      for (const [objects, material] of [[csgMeshGroup.children, materials.solid], [edgesGroup.children, materials.edges]]) {
+        for (const object of objects) {
+          const original = object.material
+          restore.push(() => { object.material = original })
+          object.material = material
+        }
+      }
+    }
+    renderer.setPixelRatio(scale)
+    renderer.render(scene, camera)
+    // Hay que copiar antes de ceder el control: el navegador descarta el cuadro
+    ctx.drawImage(renderer.domElement, 0, 0, output.width, output.height)
+  } finally {
+    restore.forEach(undo => undo())
+    scene.background = background
+    scene.fog.color.copy(fogColor)
+    if (lightDecor) scene.remove(lightDecor)
+    screenDecor.visible = true
+    renderer.setPixelRatio(pixelRatio)
+    renderer.render(scene, camera)
+  }
+
+  ctx.scale(output.width / width, output.height / height)
+  paintDimensions(ctx, toScreenShapes(visibleDimensions(), projector()), theme)
+  return output
+}
+
+async function exportImage(themeId) {
+  exportOpen.value = false
+  // Recién cambiado de modo, el sólido puede estar calculándose todavía
+  if (!csgMeshGroup.children.length) {
+    await alertDialog({ title: 'No hay imagen para exportar', message: 'El modelo todavía se está calculando o no tiene volumen.' })
+    return
+  }
+  try {
+    const buque = store.buques.find(b => b.id === store.selectedBuqueId)
+    const pozo = store.pozos.find(p => p.id === store.selectedPozoId)
+    await downloadCanvas(snapshot(themeId), imageFileName(buque?.nombre, pozo?.nombre))
+  } catch (error) {
+    await alertDialog({ title: 'No se pudo exportar', message: error.message })
+  }
 }
 
 // ---------------------------------------------------------------------------

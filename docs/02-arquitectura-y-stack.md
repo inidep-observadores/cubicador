@@ -168,6 +168,7 @@ cubicador/
 │   │   ├── BackupsPanel.vue     # Exportar/importar y copias automáticas
 │   │   ├── BottomNav.vue        # Barra inferior del modo compacto
 │   │   ├── DimensionOverlay.vue # Cotas dibujadas sobre el visor (SVG)
+│   │   ├── ExportImageDialog.vue # Elegir el fondo antes de exportar el PNG
 │   │   ├── MeasurePanel.vue     # Panel de la herramienta Medir
 │   │   ├── ModelModeToggle.vue  # Edición / Vista previa
 │   │   ├── MoreMenu.vue         # Menú "Más" del modo compacto
@@ -184,6 +185,7 @@ cubicador/
 │   │   ├── db.js                # Cliente de la base (worker), importación y exportación
 │   │   ├── dialog.js            # API de los diálogos (confirmDialog, promptDialog…)
 │   │   ├── dimensions.js        # Cotas automáticas, cotas a mano e imán de Medir
+│   │   ├── exportImage.js       # Colores, dibujo de cotas y descarga del PNG
 │   │   ├── geometryCatalog.js   # Las 10 figuras navales, fórmulas y mallas
 │   │   ├── install.js           # Instalación de la PWA
 │   │   ├── layout.js            # Tamaño de pantalla y panel abierto (diseño adaptable)
