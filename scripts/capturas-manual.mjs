@@ -175,6 +175,12 @@ try {
   await page.mouse.up()
   await listo()
   await recorte('vista-previa', visor)
+  // Diálogo de exportar la imagen (capítulo 9)
+  await page.click('[aria-label="Exportar imagen"]')
+  await pausa(400)
+  await page.evaluate(() => document.activeElement?.blur())
+  await recorte('exportar-imagen', fn(`() => document.querySelector('[aria-labelledby="export-image-title"]')`), 12)
+  await page.evaluate(() => [...document.querySelectorAll('[aria-labelledby="export-image-title"] button')].find(b => b.textContent.trim() === 'Cancelar').click())
   await store((s) => { s.modelMode = 'edicion' })
 
   // Formulario del buque, con el factor de captura (capítulo 5)

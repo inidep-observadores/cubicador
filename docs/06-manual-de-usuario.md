@@ -457,6 +457,8 @@ Al final, el volumen debe dar **85,87 m³**.
 
 En **Vista previa**, debajo del botón **?** aparece el botón de **Exportar imagen** (verde, con una flecha hacia abajo). Primero elegís qué incluir, marcando o desmarcando **Piso (cuadrícula)** y **Ejes** (las dos líneas largas que se cruzan en el origen, con sus flechas de color). La app recuerda tu elección. Después tocás el fondo y se descarga un archivo **PNG**:
 
+<img src="img/manual/exportar-imagen.webp" alt="Diálogo Exportar imagen, con las casillas Piso (cuadrícula) y Ejes y los botones Fondo claro y Fondo oscuro" width="380">
+
 - **Fondo claro:** blanco con trazos oscuros, para imprimir o pegar en un informe.
 - **Fondo oscuro:** con los mismos colores que la pantalla.
 
