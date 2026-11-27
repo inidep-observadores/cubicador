@@ -1,10 +1,10 @@
 {
-  "pdf": "0ac54b8d3f095e90238264d5803be802f27d6f145f1761e7566fe67bee690ac1",
+  "pdf": "19f24b2c229d10f3ee79a26522eadbe0d01faf61011e2e51d49a3062b1257532",
   "version": "1.0.0",
   "archivos": {
-    "docs/06-manual-de-usuario.md": "9e0c63e37f93c1c19530a721629b32989e06283af538a827a9225bff6e56d9c9",
+    "docs/06-manual-de-usuario.md": "47c7642bbfa26e8514b69233c7d68e1a33d432aabaced71cba0bf20b822a6375",
     "public/favicon.svg": "527062ed881e14f2938b592d755618c31fe282c4d174bf3bfd92039bfef2dbcb",
-    "scripts/manual-pdf/estilos.css": "22a13f367268eba090bf235c131d0fc40758e2f28cca0046fb5e79910e9cfd54",
+    "scripts/manual-pdf/estilos.css": "58fc40b9818ce2873eeb8c609716a550b4106b9c9dad76c8992a92b381bbb924",
     "scripts/manual-pdf/generar.mjs": "da6f043d1830981f413e207269c70e2677e2f1fddb072f6dfa608729567e7c27",
     "src/services/slug.js": "65dae5999eedecc0f629df9b6c28d04d48ed00ee3b29c3846d4d857c0090da1e",
     "docs/img/manual/barra-superior.webp": "646765b4d84edc2a714bbd76ed97bdc2db96b0b811c6f3b25d48fa145727d2f4",
@@ -24,7 +24,7 @@
     "docs/img/manual/pantalla-escritorio.webp": "60657b9db187e03660b90aecb899c3f266a94fcb8044e5bad130b0219a2b6f1c",
     "docs/img/manual/pantalla-telefono.webp": "3c974f8437e0b90dbc2a9d4a1f2ab88b73495de7c2e3334ed7dbee8d7016d15a",
     "docs/img/manual/rayos-x.webp": "d3698fa8e1055013a8e85ca901ccc52d5d73b6549fced4bffea10caa8d382a9d",
-    "docs/img/manual/respaldos.webp": "321e9d1ba5a69a3e7ae73cf50dbc3dfb1b71a41f689dd86af22410236af0acd1",
+    "docs/img/manual/respaldos.webp": "417cc6b005e5e55ec4887b4aa53928763883085e0466b07412b14c04d76127ac",
     "docs/img/manual/sumar-restar.svg": "7a9997f5e32ab30c741ede630e611463c1ed5c2233e2e72e84eaf1c6547e7ef0",
     "docs/img/manual/ubicacion.svg": "723837df66eea2778f0329ffed46695a94b6b4d88a1a485eabd8d059c43b2437",
     "docs/img/manual/vista-previa.webp": "6c4ac0a9db504fd1c68b28898ce2d98ddc53f546040ce258bc75eeb882298940"

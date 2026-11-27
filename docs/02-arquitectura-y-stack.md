@@ -18,7 +18,7 @@ graph TD
     DBService --> DBWorker["Web Worker: SQLite WASM oficial (dbWorker.js)"]
     DBWorker <--> OPFS["Archivo SQLite en el OPFS (opfs-sahpool)"]
     DBWorker -. "sin OPFS" .-> IDB["Copia completa en IndexedDB"]
-    DBWorker --> Export[".sqlite Físico Descargable"]
+    DBWorker --> Export["Respaldo .cubi descargable"]
     Store --> Safety["Protecciones (storageSafety.js): copias, candado de pestaña"]
 ```
 
@@ -95,6 +95,8 @@ CREATE TABLE IF NOT EXISTS bloques (
 
 ### Versionado y migraciones
 - La versión del esquema se guarda en `PRAGMA user_version` (`src/services/migrations.js`). Las bases anteriores a este mecanismo tienen versión 0.
+- Los respaldos `.cubi` son la base SQLite completa con la firma `PRAGMA application_id = 0x43554249` ("CUBI"). Para inspeccionar uno con herramientas de SQLite alcanza con renombrarlo. Al restaurar un archivo (`src/services/respaldo.js`) se exige la firma, se comprueba la integridad (`quick_check`) y se aplican las migraciones. Las copias internas no exigen firma.
+- Cada migración nueva necesita su paso inverso en `tests/respaldo.test.js`, que prueba la restauración desde todas las versiones anteriores.
 - Al abrir o importar una base se valida que tenga las tablas y columnas de la aplicación, se guarda una copia y se aplican las migraciones pendientes dentro de una transacción.
 - **v1:** los trapezoides pasaron a tener el largo sobre X (se compensa su rotación) y cada pozo se apoya en `y = 0` moviendo todas sus piezas juntas, sin cambiar el volumen.
 - **v2:** el factor de captura pasa a ser del buque; se toma el que tenía su primer pozo.
@@ -125,9 +127,9 @@ La base vive en un **Web Worker** (`src/workers/dbWorker.js`) con el SQLite ofic
 | Dos pestañas pisándose los datos | Candado de pestaña única con la Web Locks API: la segunda pestaña puede tomar el control; la primera cierra la base y suelta los archivos del OPFS. |
 | Cerrar la app a mitad de un guardado | Las piezas de un pozo se guardan en una sola transacción; con OPFS, el journal de SQLite deja la base en el estado anterior o en el nuevo, nunca a medias. |
 | Un error que daña la base | Copias automáticas dentro del navegador: una diaria y otra antes de migrar, importar o restaurar (se conservan las últimas 10). |
-| Pérdida del equipo o del navegador | Exportación a archivo `.sqlite` e importación desde el menú de respaldos; aviso si pasan 7 días sin exportar. |
+| Pérdida del equipo o del navegador | Exportación a un respaldo `.cubi` y restauración desde el menú de respaldos; aviso si pasan 7 días sin exportar. |
 
-> Las copias automáticas viven en el mismo navegador que la base. El único respaldo independiente es el archivo `.sqlite` exportado.
+> Las copias automáticas viven en el mismo navegador que la base. El único respaldo independiente es el archivo `.cubi` exportado.
 
 ---
 
@@ -167,7 +169,7 @@ cubicador/
 │   ├── components/
 │   │   ├── AppDialog.vue        # Diálogos de confirmación y avisos
 │   │   ├── AppVersion.vue       # Versión y fecha de compilación
-│   │   ├── BackupsPanel.vue     # Exportar/importar y copias automáticas
+│   │   ├── BackupsPanel.vue     # Exportar/restaurar y copias automáticas
 │   │   ├── BottomNav.vue        # Barra inferior del modo compacto
 │   │   ├── DimensionOverlay.vue # Cotas dibujadas sobre el visor (SVG)
 │   │   ├── ExportImageDialog.vue # Elegir el fondo antes de exportar el PNG
@@ -194,6 +196,7 @@ cubicador/
 │   │   ├── install.js           # Instalación de la PWA
 │   │   ├── layout.js            # Tamaño de pantalla y panel abierto (diseño adaptable)
 │   │   ├── pwaUpdate.js         # Actualización automática de la app
+│   │   ├── respaldo.js          # Archivos .cubi: firma, comprobaciones y actualización
 │   │   ├── migrations.js        # Validación y versionado del esquema
 │   │   ├── schema.js            # Tablas y datos de ejemplo
 │   │   ├── slug.js              # Anclas del manual, compartidas con el PDF

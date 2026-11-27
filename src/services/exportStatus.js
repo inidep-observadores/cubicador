@@ -4,7 +4,7 @@ import { useEditorStore } from '../stores/editorStore'
 const DAY_MS = 24 * 60 * 60 * 1000
 const EXPORT_REMINDER_DAYS = 7
 
-/** Antigüedad del último archivo .sqlite exportado y si conviene recordarlo. */
+/** Antigüedad del último respaldo exportado y si conviene recordarlo. */
 export function useExportStatus() {
   const store = useEditorStore()
 
@@ -21,7 +21,7 @@ export function useExportStatus() {
     store.lastExportAt ? new Date(store.lastExportAt).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : 'nunca'
   )
   const exportTitle = computed(() => {
-    const base = 'Descargar la base de datos completa como archivo .sqlite'
+    const base = 'Descargar un respaldo con todos los datos (.cubi)'
     if (exportAgeDays.value === null) return `${base}. Todavía no se exportó ningún respaldo.`
     return `${base}. Último respaldo: ${lastExportLabel.value}.`
   })

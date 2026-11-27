@@ -38,5 +38,5 @@ flowchart LR
 1. **Catálogo Paramétrico Naval:** Disponer de las 10 geometrías canónicas empleadas en ingeniería naval pesquera.
 2. **Entorno Gráfico 3D Intuitivo:** Manipulación mediante gizmos, snapping inteligente a cuadrícula y alineación entre caras de bloques.
 3. **Cálculo Riguroso por Intersección Espacial:** Computar el volumen del sólido resultante mediante operaciones booleanas reales (CSG), de modo que si un elemento sustractivo flota o penetra parcialmente, solo se descuente el volumen de la intersección exacta.
-4. **Operación Totalmente Desconectada (Offline-First):** Base de datos relacional SQLite completa embebida en el cliente (WASM + IndexedDB), con exportación e importación directa de archivos `.sqlite`.
+4. **Operación Totalmente Desconectada (Offline-First):** Base de datos relacional SQLite completa embebida en el cliente (WASM + IndexedDB), con exportación y restauración de respaldos propios (`.cubi`).
 5. **Terminología y Orientación Náutica:** Ejes y cámaras adaptados al vocabulario marítimo: Eslora (Proa-Popa), Manga (Babor-Estribor) y Puntal (Piso-Techo).

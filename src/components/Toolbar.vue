@@ -208,7 +208,7 @@
           class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border rounded-l-lg px-2.5 py-1.5 text-xs font-medium transition"
         >
           <Database class="w-4 h-4" :class="exportOverdue ? 'text-amber-400' : 'text-emerald-400'" />
-          <span class="hidden 2xl:inline">Respaldar DB</span>
+          <span class="hidden 2xl:inline">Respaldar</span>
           <span v-if="exportOverdue" class="text-[10px] font-mono text-amber-400">{{ exportAgeLabel }}</span>
         </button>
         <button

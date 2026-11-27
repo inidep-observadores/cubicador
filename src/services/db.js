@@ -1,4 +1,5 @@
 import { markExported } from './storageSafety.js'
+import { nombreRespaldo } from './respaldo.js'
 
 /**
  * Acceso a la base de datos desde el hilo principal.
@@ -92,11 +93,12 @@ export async function closeDatabase() {
 
 export async function exportDatabaseFile() {
   const bytes = await exportDatabaseBytes()
-  const blob = new Blob([bytes], { type: 'application/x-sqlite3' })
+  // Tipo genérico: así ningún navegador le cambia la extensión
+  const blob = new Blob([bytes], { type: 'application/octet-stream' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `cubicacion_pozos_${new Date().toISOString().slice(0, 10)}.sqlite`
+  a.download = nombreRespaldo()
   a.click()
   // Revocar después de que el navegador tome el archivo (Firefox lo necesita)
   setTimeout(() => URL.revokeObjectURL(url), 1000)
@@ -107,12 +109,13 @@ export async function exportDatabaseFile() {
  * Reemplaza la base actual por otra (copia o archivo importado). El worker la
  * valida y migra antes de tocar la actual, y guarda la actual como copia.
  */
-export function replaceDatabase(bytes, motivo) {
+export function replaceDatabase(bytes, motivo, opciones) {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
-  return call('replace', [data, motivo])
+  return call('replace', [data, motivo, opciones])
 }
 
 export async function importDatabaseFile(file) {
   const buffer = await file.arrayBuffer()
-  return replaceDatabase(buffer, 'Antes de importar un archivo')
+  // Un archivo elegido a mano tiene que traer la firma de la app
+  return replaceDatabase(buffer, 'Antes de restaurar un archivo', { exigirFirma: true })
 }

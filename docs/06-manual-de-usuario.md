@@ -563,24 +563,29 @@ Los datos viven en el navegador de ese dispositivo. Si se borran los datos del n
 
 ### Exportar un respaldo
 
-- En computadora: botón **Respaldar DB** (ícono de base de datos) en la barra superior.
-- En tablet y teléfono: **Más → Exportar .sqlite**.
+- En computadora: botón **Respaldar** (ícono de base de datos) en la barra superior.
+- En tablet y teléfono: **Más → Exportar respaldo**.
 
-Se descarga un archivo `.sqlite` con **todos** los buques, pozos y piezas. Si pasan más de 7 días sin exportar, el botón se pone **ámbar** como recordatorio.
+Se descarga un archivo con extensión **`.cubi`** (por ejemplo, `respaldo_pozos_2026-11-27.cubi`) con **todos** los buques, pozos, piezas y cotas. Es el formato propio de la app: no hace falta abrirlo con otro programa, solo guardarlo. Si pasan más de 7 días sin exportar, el botón se pone **ámbar** como recordatorio.
 
 ### Recuperar un respaldo o pasar los datos a otro equipo
 
-En el menú de respaldos (ícono de reloj junto a **Respaldar DB**, o **Más** en tablet y teléfono), tocá **Importar .sqlite** y elegí el archivo.
+En el menú de respaldos (ícono de reloj junto a **Respaldar**, o **Más** en tablet y teléfono), tocá **Restaurar respaldo** y elegí el archivo `.cubi`.
+
+- En computadora, la ventana para elegir el archivo muestra solo los `.cubi`.
+- En tablet y teléfono muestra todos los archivos: buscá el que termina en `.cubi`.
+
+Antes de reemplazar nada, la app revisa que el archivo sea un respaldo suyo y que esté completo. Si no lo es, avisa y tus datos quedan como estaban. Un respaldo hecho con una versión **anterior** de la app se actualiza solo al restaurarlo; uno hecho con una versión **más nueva** no se puede abrir hasta actualizar la app.
 
 
-<img src="img/manual/respaldos.webp" alt="Menú de respaldos: exportar, importar y copias automáticas para restaurar" width="340">
+<img src="img/manual/respaldos.webp" alt="Menú de respaldos: exportar y restaurar un respaldo, y copias automáticas" width="340">
 
 
-> **Importar reemplaza todos los datos actuales** por los del archivo. Antes, la app guarda una copia de los datos actuales, por si te equivocás.
+> **Restaurar un respaldo reemplaza todos los datos actuales** por los del archivo. Antes, la app guarda una copia de los datos actuales, por si te equivocás.
 
 ### Copias automáticas
 
-La app guarda sola una copia **por día** y otra **antes de cada cambio importante** (eliminar, importar o restaurar). Se ven en el mismo menú, con fecha y motivo, y se recuperan con **Restaurar**. Son útiles para volver atrás, pero viven en el mismo navegador: **no reemplazan** un archivo exportado.
+La app guarda sola una copia **por día** y otra **antes de cada cambio importante** (eliminar o restaurar). Se ven en el mismo menú, con fecha y motivo, y se recuperan con **Restaurar**. Son útiles para volver atrás, pero viven en el mismo navegador: **no reemplazan** un archivo exportado.
 
 ---
 
@@ -624,6 +629,12 @@ Cerrá la otra pestaña, o tocá **Usar en esta pestaña**.
 **Aparece "El navegador podría borrar los datos…".**
 El navegador no garantiza conservar los datos. Instalá la app y exportá respaldos con frecuencia.
 
+**Al restaurar dice "El archivo no es un respaldo de Cubicación 3D".**
+Elegiste otro tipo de archivo. Buscá el que termina en `.cubi`.
+
+**Al restaurar dice "El archivo está dañado o incompleto".**
+La copia o la descarga quedó a medias. Volvé a copiar el archivo desde el origen, o usá otro respaldo.
+
 **Borré algo por error.**
 Si fue una pieza, usá **Deshacer**. Si fue un buque o un pozo, recuperalo desde las **copias automáticas** (menú de respaldos → **Restaurar**).
 
@@ -649,4 +660,4 @@ Si fue una pieza, usá **Deshacer**. Si fue un buque o un pozo, recuperalo desde
 | **Cota** | Línea con flechas que muestra una medida sobre el dibujo |
 | **Imán** | Ayuda que acomoda las piezas en la cuadrícula y las pega a otras cercanas |
 | **Vista previa** | Modo que muestra el pozo final como un único sólido |
-| **Respaldo (.sqlite)** | Archivo con todos los datos, para guardar o pasar a otro equipo |
+| **Respaldo (.cubi)** | Archivo con todos los datos, para guardar o pasar a otro equipo |

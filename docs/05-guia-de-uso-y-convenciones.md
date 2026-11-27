@@ -145,14 +145,14 @@ La barra superior muestra el volumen del sólido que resulta de unir y cortar la
 ## 7. Respaldos y Persistencia
 
 - **Auto-guardado continuo:** Cada modificación se guarda automáticamente en un archivo SQLite dentro del navegador (OPFS), también al cerrar u ocultar la pestaña. En navegadores sin OPFS se usa un modo compatible sobre IndexedDB; el menú de respaldos indica cuál está en uso.
-- **Botón "Respaldar DB":** Descarga el archivo `.sqlite` con todos los buques, pozos y piezas, para transferir la información entre computadoras o conservarla como resguardo de la marea. Se pone en ámbar si pasaron 7 días sin exportar.
+- **Botón "Respaldar":** Descarga un respaldo `.cubi` con todos los buques, pozos y piezas, para transferir la información entre computadoras o conservarla como resguardo de la marea. Se pone en ámbar si pasaron 7 días sin exportar.
 - **Menú de respaldos (🕘):**
-  - **Exportar / Importar .sqlite.** Al importar se valida el archivo y la base actual se guarda como copia antes de reemplazarla.
+  - **Exportar / Restaurar respaldo (.cubi).** Al restaurar se comprueban la firma, la integridad y las tablas del archivo, y la base actual se guarda como copia antes de reemplazarla. En computadora el selector muestra solo `.cubi`; en pantallas táctiles no filtra.
   - **Copias automáticas** guardadas en el navegador (una por día y antes de cada importación o restauración), con opción de restaurarlas.
   - Aviso si el navegador no garantiza conservar los datos.
 - **Una pestaña a la vez:** si la app ya está abierta en otra pestaña, se ofrece pasar a usarla en la actual; la otra deja de guardar para no pisar los datos.
 
-> Las copias automáticas viven en el mismo navegador. El respaldo que sobrevive a la pérdida del equipo es el archivo `.sqlite` exportado.
+> Las copias automáticas viven en el mismo navegador. El respaldo que sobrevive a la pérdida del equipo es el archivo `.cubi` exportado.
 
 ---
 

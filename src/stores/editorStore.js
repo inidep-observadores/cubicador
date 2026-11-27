@@ -44,7 +44,7 @@ export const useEditorStore = defineStore('editor', {
     storagePersisted: null, // true/false; null = el navegador no informa
     tabStatus: 'ok', // 'ok' | 'ocupada' (otra pestaña la tiene) | 'desplazada' (otra la tomó)
     backups: [], // copias automáticas dentro del navegador (sin el binario)
-    lastExportAt: null, // última exportación a archivo .sqlite (ms)
+    lastExportAt: null, // última exportación a un archivo de respaldo (ms)
 
     // Buque y Pozo actual
     buques: [],
@@ -245,15 +245,15 @@ export const useEditorStore = defineStore('editor', {
       this.lastExportAt = await exportDatabaseFile()
     },
 
-    /** Reemplaza la base por un archivo .sqlite exportado antes (con copia previa). */
+    /** Reemplaza la base por un respaldo exportado antes (con copia previa). */
     async importDatabase(file) {
       if (!file) return
       const ok = await confirmDialog({
-        title: 'Importar base de datos',
-        message: `¿Importar "${file.name}"?\n\n` +
+        title: 'Restaurar respaldo',
+        message: `¿Restaurar "${file.name}"?\n\n` +
           'Reemplazará todos los buques, pozos y piezas actuales. ' +
-          'La base actual se guardará como copia antes de reemplazarla.',
-        confirmText: 'Importar',
+          'Los datos actuales se guardarán como copia antes de reemplazarlos.',
+        confirmText: 'Restaurar',
         danger: true
       })
       if (!ok) return
@@ -265,8 +265,8 @@ export const useEditorStore = defineStore('editor', {
         await this.refreshBackupInfo()
       } catch (err) {
         await alertDialog({
-          title: 'No se pudo importar el archivo',
-          message: `${err.message || err}\n\nLa base actual no se modificó.`
+          title: 'No se pudo restaurar el respaldo',
+          message: `${err.message || err}\n\nTus datos actuales no se modificaron.`
         })
       } finally {
         this.isLoading = false

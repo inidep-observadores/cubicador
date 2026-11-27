@@ -5,6 +5,7 @@ import { initTables, seedInitialData } from '../services/schema.js'
 import {
   migrateDatabase, validateSchema, getSchemaVersion, setSchemaVersion, SCHEMA_VERSION
 } from '../services/migrations.js'
+import { prepararRespaldo, firmar } from '../services/respaldo.js'
 import { saveBackup } from '../services/storageSafety.js'
 
 /**
@@ -71,24 +72,14 @@ async function persistIfMemory() {
   if (backend === 'memoria') await set(LEGACY_IDB_KEY, exportBytes())
 }
 
-/**
- * Valida y migra una base recibida como bytes, en memoria, sin tocar la actual.
- * Devuelve los bytes listos para usar y si hubo migración.
- */
-async function prepareBytes(bytes, backupMotivo) {
-  const tmp = openFromBytes(sqlite3, bytes)
-  const c = sqlJsCompat(sqlite3, tmp)
-  try {
-    validateSchema(c)
-    const version = getSchemaVersion(c)
-    if (version < SCHEMA_VERSION && backupMotivo) {
-      await saveBackup(bytes, `${backupMotivo} (v${version} → v${SCHEMA_VERSION})`)
-    }
-    const migrated = migrateDatabase(c)
-    return { bytes: c.export(), migrated }
-  } finally {
-    tmp.close()
-  }
+/** Como prepararRespaldo, guardando una copia si la base hay que actualizarla. */
+function prepareBytes(bytes, backupMotivo, { exigirFirma = false } = {}) {
+  return prepararRespaldo(sqlite3, bytes, {
+    exigirFirma,
+    antesDeMigrar: backupMotivo
+      ? version => saveBackup(bytes, `${backupMotivo} (v${version} → v${SCHEMA_VERSION})`)
+      : undefined
+  })
 }
 
 function configureConnection() {
@@ -136,6 +127,7 @@ async function openOpfs() {
       migrateDatabase(compat())
     }
   }
+  firmar(compat())
   return origen
 }
 
@@ -156,6 +148,7 @@ async function openMemory() {
     setSchemaVersion(compat())
     await persistIfMemory()
   }
+  firmar(compat())
   return origen
 }
 
@@ -204,8 +197,8 @@ const ops = {
   },
 
   /** Reemplaza la base actual (importación o restauración de una copia). */
-  async replace(bytes, motivo) {
-    const prepared = await prepareBytes(bytes, null) // falla antes de tocar la base actual
+  async replace(bytes, motivo, opciones) {
+    const prepared = await prepareBytes(bytes, null, opciones) // falla antes de tocar la base actual
     await saveBackup(exportBytes(), motivo)
     db.close()
     db = null

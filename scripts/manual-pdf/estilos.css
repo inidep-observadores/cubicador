@@ -150,5 +150,6 @@ img[width] { width: auto; max-width: min(100%, var(--ancho)); max-height: 78mm; 
 
 /* Apartados que, con su tabla y su dibujo, quedan mejor en una página propia */
 h3#los-ejes-hacia-dónde-es-cada-cosa,
-h3#en-tablet-y-teléfono { break-before: page; margin-top: 0; }
+h3#en-tablet-y-teléfono,
+h3#recuperar-un-respaldo-o-pasar-los-datos-a-otro-equipo { break-before: page; margin-top: 0; }
 img[width] { display: block; margin: 0 auto 3mm; break-inside: avoid; }

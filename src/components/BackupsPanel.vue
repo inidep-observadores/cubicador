@@ -1,17 +1,17 @@
 <template>
-  <!-- Respaldos: exportar/importar .sqlite y copias automáticas del navegador -->
+  <!-- Respaldos: exportar/restaurar archivos .cubi y copias automáticas del navegador -->
   <div class="space-y-2 text-xs">
     <p v-if="store.storagePersisted === true" class="text-emerald-400/90 text-[11px]">
       ✓ El navegador conserva los datos de forma persistente.
     </p>
     <p v-else class="text-amber-300 text-[11px]">
       ⚠ El navegador podría borrar los datos si falta espacio o la app no se usa por un tiempo.
-      Instalá la app y exportá respaldos .sqlite con frecuencia.
+      Instalá la app y exportá respaldos con frecuencia.
     </p>
 
     <p class="text-slate-400 text-[11px]">
       Almacenamiento:
-      <span v-if="store.storageBackend === 'opfs'" class="text-slate-200">archivo SQLite del navegador (OPFS)</span>
+      <span v-if="store.storageBackend === 'opfs'" class="text-slate-200">base de datos del navegador (OPFS)</span>
       <span v-else class="text-amber-300" title="Este navegador no admite OPFS en segundo plano: la base se guarda completa en IndexedDB después de cada cambio">memoria + IndexedDB (modo compatible)</span>
     </p>
 
@@ -25,17 +25,18 @@
         class="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg py-2 font-medium transition"
       >
         <Download class="w-3.5 h-3.5 text-emerald-400" />
-        Exportar .sqlite
+        Exportar respaldo
       </button>
       <button
         @click="fileInput?.click()"
         class="flex-1 flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg py-2 font-medium transition"
-        title="Reemplazar la base actual por un archivo .sqlite exportado antes"
+        title="Reemplazar los datos actuales por los de un respaldo .cubi"
       >
         <Upload class="w-3.5 h-3.5 text-sky-400" />
-        Importar .sqlite
+        Restaurar respaldo
       </button>
-      <input ref="fileInput" type="file" accept=".sqlite,.sqlite3,.db,application/x-sqlite3,application/vnd.sqlite3" class="hidden" @change="onImportFile" />
+      <!-- En táctiles no se filtra: Android y iOS suelen deshabilitar las extensiones propias -->
+      <input ref="fileInput" type="file" :accept="layout.isTouch ? undefined : EXTENSION" class="hidden" @change="onImportFile" />
     </div>
 
     <p class="text-slate-500 text-[11px] pt-1">
@@ -69,6 +70,8 @@ import { ref } from 'vue'
 import { Download, Upload } from 'lucide-vue-next'
 import { useEditorStore } from '../stores/editorStore'
 import { useExportStatus } from '../services/exportStatus'
+import { layout } from '../services/layout'
+import { EXTENSION } from '../services/respaldo'
 
 defineProps({
   // En el menú desplegable del escritorio la lista tiene su propio scroll
