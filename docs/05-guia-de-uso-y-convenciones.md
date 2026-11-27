@@ -75,6 +75,11 @@ La pieza seleccionada muestra tiradores (puntos ámbar) sobre las caras que se p
 - Los decimales se escriben con **coma** (también se acepta el punto). El punto del teclado numérico escribe la coma. Las flechas arriba y abajo suman o restan un paso.
 - Un valor vacío, no numérico o por debajo del mínimo marca el campo en rojo y no se aplica; al salir del campo vuelve el último valor válido.
 
+### Cotas y herramienta Medir
+- El botón de la regla muestra u oculta todas las cotas (preferencia guardada en el dispositivo).
+- **Automáticas:** en Edición, las de la pieza seleccionada en sus propios ejes; en Vista previa, las del pozo completo. Totales por eje y, si hay de 2 a 6 tramos, la cadena de parciales entre esquinas (vértices donde se juntan tres o más caras; las superficies curvas no generan quiebres).
+- **Medir (`D`):** cota entre dos puntos, directa o proyectada sobre un eje, con imán a esquinas y aristas. Se guarda por pozo; no sigue a las piezas ni entra en deshacer.
+
 ---
 
 ## 4. Snap Magnético vs. Ajuste Fino Manual

@@ -167,7 +167,7 @@
 
       <!-- Cotas -->
       <button
-        @click="store.showDimensions = !store.showDimensions"
+        @click="store.setShowDimensions(!store.showDimensions)"
         :class="store.showDimensions ? 'bg-slate-700 text-sky-400 border-sky-500/50' : 'bg-slate-800 text-slate-400 border-slate-700'"
         title="Mostrar / Ocultar Cotas y Medidas"
         aria-label="Cotas y medidas"

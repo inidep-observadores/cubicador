@@ -167,3 +167,17 @@ test('migración v4: agrega el desvío del vértice en 0 sin tocar las piezas', 
     assert.equal(b.desvio_ancho, 0)
   }
 })
+
+test('migración v5: agrega la tabla de cotas sin tocar las piezas', () => {
+  const db = baseLegacy()
+  migrateDatabase(db)
+  const antes = bloques(db, 1)
+  db.run('DROP TABLE cotas')
+  db.run('PRAGMA user_version = 4')
+
+  assert.equal(migrateDatabase(db), true)
+  db.run('INSERT INTO cotas (pozo_id, ax, ay, az, bx, by, bz) VALUES (1, 0, 0, 0, 1, 2, 3)')
+  const [fila] = db.exec('SELECT pozo_id, bz, eje FROM cotas')[0].values
+  assert.deepEqual(fila, [1, 3, ''])
+  assert.deepEqual(bloques(db, 1), antes)
+})

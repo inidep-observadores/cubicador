@@ -55,6 +55,16 @@ export function initTables(db) {
       desvio_ancho REAL DEFAULT 0,
       FOREIGN KEY (pozo_id) REFERENCES pozos (id) ON DELETE CASCADE
     );
+
+    -- Cotas puestas a mano con la herramienta Medir
+    CREATE TABLE IF NOT EXISTS cotas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pozo_id INTEGER NOT NULL,
+      ax REAL NOT NULL, ay REAL NOT NULL, az REAL NOT NULL,
+      bx REAL NOT NULL, by REAL NOT NULL, bz REAL NOT NULL,
+      eje TEXT DEFAULT '', -- '' distancia directa; 'x', 'y' o 'z' solo sobre ese eje
+      FOREIGN KEY (pozo_id) REFERENCES pozos (id) ON DELETE CASCADE
+    );
   `)
 }
 

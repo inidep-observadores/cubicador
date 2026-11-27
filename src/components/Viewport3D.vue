@@ -3,6 +3,16 @@
     <!-- Canvas Three.js (touch-none: los gestos son del visor, no de la página) -->
     <canvas ref="canvasRef" class="w-full h-full block outline-none cursor-grab active:cursor-grabbing touch-none"></canvas>
 
+    <DimensionOverlay :shapes="overlayShapes" :markers="overlayMarkers" />
+
+    <!-- Medir: en escritorio arriba a la derecha; en el teléfono sobre los controles -->
+    <MeasurePanel
+      v-if="store.measureMode"
+      :pending="!!measureStart"
+      class="absolute z-20"
+      :class="layout.isPhone ? 'bottom-16 left-2 right-2' : (layout.isCompact ? 'top-2 right-2 w-60' : 'top-4 right-4 w-64')"
+    />
+
     <!-- Medida en vivo mientras se estira -->
     <div
       v-if="stretchLabel"
@@ -69,7 +79,7 @@
     <!-- Cotas del bloque seleccionado: editables, solo las medidas de su figura.
          En el teléfono se editan desde el panel "Editar" -->
     <div
-      v-if="store.showDimensions && store.selectedBlock && selectedDef && !layout.isPhone"
+      v-if="store.showDimensions && !store.measureMode && store.selectedBlock && selectedDef && !layout.isPhone"
       class="absolute z-20 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl shadow-lg font-mono text-xs text-slate-300 space-y-1"
       :class="layout.isCompact ? 'top-2 right-2 p-2' : 'top-4 right-4 p-3'"
     >
@@ -132,33 +142,33 @@
       <!-- Modo de manipulación de bloque (Mover / Rotar) -->
       <div class="shrink-0 flex bg-slate-800 border border-slate-700 rounded-lg p-0.5">
         <button
-          @click="store.transformMode = 'translate'"
-          :class="[store.transformMode === 'translate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
+          @click="setTransformMode('translate')"
+          :class="[activeMode === 'translate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
           title="Modo Mover (Tecla W o G)"
           aria-label="Mover"
-          :aria-pressed="store.transformMode === 'translate'"
+          :aria-pressed="activeMode === 'translate'"
           class="text-xs font-medium rounded transition flex items-center gap-1"
         >
           <Move3d class="w-3.5 h-3.5" />
           <span v-if="layout.isWide">Mover (W)</span>
         </button>
         <button
-          @click="store.transformMode = 'rotate'"
-          :class="[store.transformMode === 'rotate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
+          @click="setTransformMode('rotate')"
+          :class="[activeMode === 'rotate' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
           title="Modo Rotar (Tecla R o E)"
           aria-label="Rotar"
-          :aria-pressed="store.transformMode === 'rotate'"
+          :aria-pressed="activeMode === 'rotate'"
           class="text-xs font-medium rounded transition flex items-center gap-1"
         >
           <RotateCw class="w-3.5 h-3.5" />
           <span v-if="layout.isWide">Rotar (R)</span>
         </button>
         <button
-          @click="store.transformMode = 'stretch'"
-          :class="[store.transformMode === 'stretch' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
+          @click="setTransformMode('stretch')"
+          :class="[activeMode === 'stretch' ? 'bg-sky-600 text-white shadow' : 'text-slate-400 hover:text-white', btnPad]"
           title="Modo Estirar: arrastrar una cara para cambiar su medida (Tecla S)"
           aria-label="Estirar"
-          :aria-pressed="store.transformMode === 'stretch'"
+          :aria-pressed="activeMode === 'stretch'"
           class="text-xs font-medium rounded transition flex items-center gap-1"
         >
           <MoveDiagonal class="w-3.5 h-3.5" />
@@ -180,8 +190,22 @@
         <span v-if="layout.isWide">Espejo (M)</span>
       </button>
 
-      <!-- Alternar Imán / Snap -->
+      <!-- Medir: cotas entre dos puntos -->
       <button
+        @click="store.toggleMeasureMode()"
+        :class="[store.measureMode ? 'text-emerald-300 bg-emerald-500/10 border-emerald-500/40' : 'text-slate-400 hover:text-white border-transparent hover:border-slate-700', btnPad]"
+        title="Medir: poner cotas entre dos puntos (Tecla D)"
+        aria-label="Medir"
+        :aria-pressed="store.measureMode"
+        class="shrink-0 text-xs font-medium rounded-lg border transition flex items-center gap-1"
+      >
+        <PencilRuler class="w-3.5 h-3.5" />
+        <span v-if="layout.isWide">Medir (D)</span>
+      </button>
+
+      <!-- Alternar Imán / Snap (en el teléfono está en el menú Más) -->
+      <button
+        v-if="!layout.isPhone"
         @click="store.snapToGrid = !store.snapToGrid"
         :class="[store.snapToGrid ? 'text-amber-400 bg-amber-500/10' : 'text-slate-500 hover:text-slate-300', btnPad]"
         title="Ajuste Magnético a la Cuadrícula (Snap 0.25m)"
@@ -230,7 +254,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, shallowRef, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js'
@@ -243,9 +267,12 @@ import DecimalInput from './DecimalInput.vue'
 import { formatDecimal } from '../services/decimal'
 import ModelModeToggle from './ModelModeToggle.vue'
 import { layout, openManual } from '../services/layout'
-import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown, FlipHorizontal2, X, BookOpen } from 'lucide-vue-next'
+import { Compass, Move3d, Magnet, RotateCw, MoveDiagonal, CircleHelp, ChevronDown, FlipHorizontal2, X, BookOpen, PencilRuler } from 'lucide-vue-next'
 import { getHandles, singleAxisHandles, supportsStretch, dragDistance, resolveStretch } from '../services/stretch'
 import { EJES_ESPEJO } from '../services/mirror'
+import { autoDimensions, manualDimension, toScreenShapes, snapPoint, findCorners, boundsOf } from '../services/dimensions'
+import DimensionOverlay from './DimensionOverlay.vue'
+import MeasurePanel from './MeasurePanel.vue'
 
 const store = useEditorStore()
 const containerRef = ref(null)
@@ -289,6 +316,7 @@ const selectedDef = computed(() => GEOMETRY_TYPES[store.selectedBlock?.tipo_figu
 const mirrorOpen = ref(false)
 const MIRROR_COLOR = { x: 'text-rose-400', y: 'text-emerald-400', z: 'text-sky-400' }
 const mirrorBlocked = computed(() => {
+  if (store.measureMode) return 'Salí de Medir'
   if (store.modelMode !== 'edicion') return 'Solo en Edición'
   if (!store.selectedBlock) return 'Seleccioná una pieza'
   if (store.selectedBlock.fijada) return 'Pieza fijada'
@@ -303,7 +331,6 @@ let scene, camera, renderer, orbitControls, transformControls, resizeObserver
 const blockMeshGroup = new THREE.Group()
 const csgMeshGroup = new THREE.Group()
 const edgesGroup = new THREE.Group()
-const dimensionsGroup = new THREE.Group()
 const raycaster = new THREE.Raycaster()
 const mouse = new THREE.Vector2()
 
@@ -322,7 +349,7 @@ const handleActiveMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, dept
 const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false, depthTest: false })
 
 const stretchHint = computed(() => {
-  if (store.transformMode !== 'stretch' || store.modelMode !== 'edicion') return ''
+  if (store.transformMode !== 'stretch' || store.modelMode !== 'edicion' || store.measureMode) return ''
   const b = store.selectedBlock
   if (!b) return 'Seleccioná una pieza para estirarla.'
   if (b.fijada) return 'La pieza está fijada: liberala para estirarla.'
@@ -331,7 +358,24 @@ const stretchHint = computed(() => {
 })
 let csgRenderToken = 0
 // Pieza seleccionada en la escena, para actualizarla en el arrastre sin reconstruir todo
-let selectedParts = null // { mesh, edges, box, boxHelper }
+let selectedParts = null // { mesh, edges }
+
+// Cotas en pantalla
+const overlayShapes = shallowRef([])
+const overlayMarkers = shallowRef([])
+const dimensionData = new WeakMap() // geometría → { min, max, corners }
+// Cuerpo que se acota solo: la pieza seleccionada (edición) o el pozo (vista previa)
+let dimensionTarget = null // { geometry, object }
+// Primer punto elegido con Medir y punto bajo el puntero
+const measureStart = shallowRef(null)
+let measureHover = null
+
+// Botón activo de Mover / Rotar / Estirar (ninguno mientras se mide)
+const activeMode = computed(() => store.measureMode ? null : store.transformMode)
+function setTransformMode(mode) {
+  store.measureMode = false
+  store.transformMode = mode
+}
 
 onMounted(() => {
   initThree()
@@ -344,6 +388,7 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   canvasRef.value?.removeEventListener('pointerdown', onPointerDown)
   canvasRef.value?.removeEventListener('pointerup', onPointerUp)
+  canvasRef.value?.removeEventListener('pointermove', onMeasureMove)
   containerRef.value?.removeEventListener('pointerdown', onHandleDown, true)
   stopStretch()
   clearHighlight()
@@ -377,6 +422,7 @@ function renderFrame() {
   const cameraMoved = orbitControls.update()
   scaleHandles()
   renderer.render(scene, camera)
+  updateOverlay()
   if (cameraMoved) requestRender()
 }
 
@@ -450,16 +496,6 @@ function compositeEdgesMaterial() {
   )
 }
 
-const DIMENSIONS_COLOR = new THREE.Color(0xfbbf24)
-
-function makeBoxHelper(box) {
-  const helper = new THREE.Box3Helper(box, DIMENSIONS_COLOR)
-  helper.material.opacity = 0.5
-  helper.material.transparent = true
-  helper.userData.ownsResources = true // geometría y material propios
-  return helper
-}
-
 // ---------------------------------------------------------------------------
 // Geometrías en caché por forma (tipo + medidas): mover o rotar una pieza ya no
 // regenera su malla; solo se regenera al cambiar sus medidas.
@@ -528,8 +564,8 @@ function clearScene() {
   clearGroup(blockMeshGroup)
   clearGroup(csgMeshGroup)
   clearGroup(edgesGroup)
-  clearGroup(dimensionsGroup)
   selectedParts = null
+  dimensionTarget = null
 }
 
 // ---------------------------------------------------------------------------
@@ -573,11 +609,13 @@ function onKeyDown(e) {
   if (e.altKey) return
 
   if (e.key === 'r' || e.key === 'R' || e.key === 'e' || e.key === 'E') {
-    store.transformMode = 'rotate'
+    setTransformMode('rotate')
   } else if (e.key === 'w' || e.key === 'W' || e.key === 'g' || e.key === 'G') {
-    store.transformMode = 'translate'
+    setTransformMode('translate')
   } else if (e.key === 's' || e.key === 'S') {
-    store.transformMode = 'stretch'
+    setTransformMode('stretch')
+  } else if (e.key === 'd' || e.key === 'D') {
+    store.toggleMeasureMode()
   } else if (e.key === ' ' || e.key === 'Spacebar') {
     e.preventDefault()
     toggleTransformMode()
@@ -586,6 +624,12 @@ function onKeyDown(e) {
   } else if (mirrorOpen.value && ['x', 'y', 'z'].includes(e.key.toLowerCase())) {
     mirrorSelected(e.key.toLowerCase())
   } else if (e.key === 'Escape') {
+    // Con Medir abierto, Esc primero descarta el punto elegido y después sale
+    if (store.measureMode) {
+      if (measureStart.value) resetMeasure()
+      else store.measureMode = false
+      return
+    }
     if (mirrorOpen.value) {
       mirrorOpen.value = false
       return
@@ -653,7 +697,6 @@ function initThree() {
   scene.add(blockMeshGroup)
   scene.add(csgMeshGroup)
   scene.add(edgesGroup)
-  scene.add(dimensionsGroup)
   scene.add(handlesGroup)
   scene.add(faceHighlightGroup)
 
@@ -727,6 +770,7 @@ function initThree() {
 
   canvas.addEventListener('pointerdown', onPointerDown)
   canvas.addEventListener('pointerup', onPointerUp)
+  canvas.addEventListener('pointermove', onMeasureMove)
   // En captura sobre el contenedor: se adelanta a la cámara si se toca un tirador
   containerRef.value.addEventListener('pointerdown', onHandleDown, true)
 
@@ -762,6 +806,12 @@ function onPointerUp(event) {
   if (!start || !event.isPrimary) return
   const moved = Math.hypot(event.clientX - start.x, event.clientY - start.y)
   if (moved > TAP_MAX_MOVE_PX || performance.now() - start.t > TAP_MAX_MS) return
+
+  // Midiendo, el toque marca un punto y no cambia la selección
+  if (store.measureMode) {
+    addMeasurePoint(event)
+    return
+  }
 
   const rect = canvasRef.value.getBoundingClientRect()
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
@@ -813,7 +863,6 @@ function renderBlocks() {
 function renderComposite() {
   const token = ++csgRenderToken
   const viewMode = store.viewMode
-  const showDimensions = store.showDimensions
   computeComposite(store.bloques).then(res => {
     // Si mientras tanto cambió algo, este resultado ya no corresponde
     if (res.superseded || token !== csgRenderToken || store.modelMode !== 'solidoFinal') return
@@ -828,11 +877,8 @@ function renderComposite() {
       // Aristas técnicas de la figura final unida y perforada
       edgesGroup.add(new THREE.LineSegments(compositeEdges(res.geometry), compositeEdgesMaterial()))
 
-      // Cotas envolventes del pozo completo
-      if (showDimensions) {
-        res.geometry.computeBoundingBox()
-        dimensionsGroup.add(makeBoxHelper(res.geometry.boundingBox.clone()))
-      }
+      // Las cotas automáticas son las del pozo completo
+      dimensionTarget = { geometry: res.geometry, object: mesh }
     }
     requestRender()
   })
@@ -867,16 +913,11 @@ function renderEditMode() {
     edgesGroup.add(edgesLine)
 
     if (isSelected) {
-      selectedMesh = b.fijada || store.transformMode === 'stretch' ? null : mesh
-      if (store.transformMode === 'stretch' && !b.fijada) addHandles(b)
-      selectedParts = { mesh, edges: edgesLine, box: null }
-
-      // Si está activo mostrar cotas, dibujar caja de cotas 3D
-      if (store.showDimensions) {
-        const box = new THREE.Box3().setFromObject(mesh)
-        dimensionsGroup.add(makeBoxHelper(box))
-        selectedParts.box = box
-      }
+      const stretching = store.transformMode === 'stretch'
+      selectedMesh = b.fijada || stretching || store.measureMode ? null : mesh
+      if (stretching && !b.fijada && !store.measureMode) addHandles(b)
+      selectedParts = { mesh, edges: edgesLine }
+      dimensionTarget = { geometry, object: mesh }
     }
   }
 
@@ -980,7 +1021,7 @@ function handleAt(event) {
 
 function onHandleDown(event) {
   if (event.target !== canvasRef.value || event.button !== 0 || !event.isPrimary) return
-  if (store.transformMode !== 'stretch' || !store.selectedBlock || store.selectedBlock.fijada) return
+  if (store.measureMode || store.transformMode !== 'stretch' || !store.selectedBlock || store.selectedBlock.fijada) return
   const picked = handleAt(event)
   if (!picked) return
   // En el vértice la dirección se decide con el primer movimiento
@@ -1072,14 +1113,13 @@ function stopStretch(event) {
 
 /**
  * Durante el arrastre con el gizmo la malla ya se mueve sola: solo se acompañan
- * sus aristas y la caja de cotas, sin reconstruir la escena en cada movimiento.
+ * sus aristas (las cotas la siguen solas), sin reconstruir la escena en cada movimiento.
  */
 function syncSelectedDuringDrag() {
   if (!selectedParts) return
-  const { mesh, edges, box } = selectedParts
+  const { mesh, edges } = selectedParts
   edges.position.copy(mesh.position)
   edges.rotation.copy(mesh.rotation)
-  if (box) box.setFromObject(mesh)
   requestRender()
 }
 
@@ -1091,11 +1131,148 @@ watch(() => store.selectedBlockId, () => renderBlocks())
 watch(() => store.hiddenBlockIds, () => renderBlocks())
 watch(() => store.viewMode, () => renderBlocks())
 watch(() => store.modelMode, () => renderBlocks())
-watch(() => store.showDimensions, () => renderBlocks())
+watch(() => store.showDimensions, () => requestRender())
+watch(() => store.cotas, () => requestRender(), { deep: true })
+watch(() => store.measureAxis, () => requestRender())
+watch(() => store.selectedPozoId, () => resetMeasure())
+watch(() => store.measureMode, () => {
+  mirrorOpen.value = false
+  resetMeasure()
+  renderBlocks() // el gizmo y los tiradores no se usan mientras se mide
+})
 watch(() => store.transformMode, (newMode) => {
   if (transformControls && newMode !== 'stretch') transformControls.setMode(newMode)
   renderBlocks() // aparecen o desaparecen el gizmo y los tiradores
 })
+
+// ---------------------------------------------------------------------------
+// Cotas y herramienta Medir
+// ---------------------------------------------------------------------------
+function dataFor(geometry) {
+  let data = dimensionData.get(geometry)
+  if (!data) {
+    const positions = geometry.attributes.position.array
+    data = { ...boundsOf(positions), corners: findCorners(positions, geometry.index?.array) }
+    dimensionData.set(geometry, data)
+  }
+  return data
+}
+
+/** Punto de la bodega [x, y, z] a píxeles del visor; null si queda detrás. */
+function projector() {
+  const width = containerRef.value.clientWidth
+  const height = containerRef.value.clientHeight
+  const v = new THREE.Vector3()
+  return (point) => {
+    v.fromArray(point).project(camera)
+    if (v.z < -1 || v.z > 1) return null
+    return { x: (v.x + 1) / 2 * width, y: (1 - v.y) / 2 * height, depth: v.z }
+  }
+}
+
+/** Cotas automáticas del cuerpo acotado, en coordenadas de la bodega. */
+function currentAutoDimensions() {
+  if (!dimensionTarget) return []
+  const { geometry, object } = dimensionTarget
+  object.updateMatrixWorld()
+  // Se calculan en los ejes de la pieza, para que informen sus medidas aunque esté girada
+  const eye = object.worldToLocal(camera.position.clone()).toArray()
+  const toWorld = (p) => object.localToWorld(new THREE.Vector3().fromArray(p)).toArray()
+  return autoDimensions(dataFor(geometry), eye).map(d => ({
+    ...d, a: toWorld(d.a), b: toWorld(d.b), ext: d.ext.map(pair => pair.map(toWorld))
+  }))
+}
+
+function updateOverlay() {
+  if (!containerRef.value) return
+  if (!store.showDimensions && !store.measureMode) {
+    if (overlayShapes.value.length) overlayShapes.value = []
+    if (overlayMarkers.value.length) overlayMarkers.value = []
+    return
+  }
+  const project = projector()
+  // Midiendo, las cotas automáticas se apartan para no confundir
+  const dimensions = store.measureMode ? [] : currentAutoDimensions()
+  for (const cota of store.cotas) dimensions.push(manualDimension(cota))
+
+  const markers = []
+  if (store.measureMode) {
+    const start = measureStart.value
+    if (start && measureHover) {
+      dimensions.push(manualDimension({ a: start, b: measureHover.point, eje: store.measureAxis }))
+    }
+    for (const mark of [start && { point: start, type: 'esquina' }, measureHover]) {
+      const p = mark && project(mark.point)
+      if (p) markers.push({ ...p, type: mark.type })
+    }
+  }
+  overlayShapes.value = toScreenShapes(dimensions, project)
+  overlayMarkers.value = markers
+}
+
+/** Esquinas y aristas a las que se puede enganchar un punto. */
+function snapCandidates() {
+  const corners = []
+  const edges = []
+  const solid = store.modelMode === 'solidoFinal'
+  const meshes = solid ? csgMeshGroup.children : blockMeshGroup.children
+  const v = new THREE.Vector3()
+
+  for (const mesh of meshes) {
+    mesh.updateMatrixWorld()
+    const toWorld = (p) => v.fromArray(p).applyMatrix4(mesh.matrixWorld).toArray()
+    for (const corner of dataFor(mesh.geometry).corners) corners.push(toWorld(corner))
+  }
+  for (const line of edgesGroup.children) {
+    line.updateMatrixWorld()
+    const pos = line.geometry.attributes.position
+    for (let i = 0; i + 1 < pos.count; i += 2) {
+      edges.push([i, i + 1].map(j => v.fromBufferAttribute(pos, j).applyMatrix4(line.matrixWorld).toArray()))
+    }
+  }
+  return { corners, edges, meshes }
+}
+
+function measurePointAt(event) {
+  const rect = canvasRef.value.getBoundingClientRect()
+  const pointer = { x: event.clientX - rect.left, y: event.clientY - rect.top }
+  pointerRay(event)
+  const { corners, edges, meshes } = snapCandidates()
+  const hit = raycaster.intersectObjects(meshes, false)[0]
+  return snapPoint(pointer, { corners, edges, surface: hit ? hit.point.toArray() : null },
+    projector(), layout.isTouch ? 24 : 14)
+}
+
+/** Vista previa del punto (y de la cota) mientras se mueve el mouse. */
+function onMeasureMove(event) {
+  // Con el botón apretado se está orbitando; en pantalla táctil no hay vista previa
+  if (!store.measureMode || event.pointerType === 'touch' || event.buttons) return
+  measureHover = measurePointAt(event)
+  requestRender()
+}
+
+function addMeasurePoint(event) {
+  const found = measurePointAt(event)
+  if (!found) return
+  const point = found.point.map(n => Math.round(n * 1000) / 1000) // al milímetro
+  const start = measureStart.value
+  if (!start) {
+    measureStart.value = point
+  } else {
+    // Dos puntos sin distancia sobre el eje elegido no hacen una cota
+    if (manualDimension({ a: start, b: point, eje: store.measureAxis }).value < 0.005) return
+    store.addCota(start, point, store.measureAxis)
+    measureStart.value = null
+  }
+  measureHover = null
+  requestRender()
+}
+
+function resetMeasure() {
+  measureStart.value = null
+  measureHover = null
+  requestRender()
+}
 
 // ---------------------------------------------------------------------------
 // Cámara

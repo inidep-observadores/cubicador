@@ -23,6 +23,16 @@ const HISTORY_LIMIT = 50
 // Las ediciones continuas se agrupan en un solo paso al quedar quietas este tiempo
 const HISTORY_DEBOUNCE_MS = 600
 
+// Ver u ocultar las cotas es una preferencia de este dispositivo
+const DIMENSIONS_KEY = 'cubicacion_cotas'
+function readShowDimensions() {
+  try {
+    return localStorage.getItem(DIMENSIONS_KEY) !== 'ocultas'
+  } catch {
+    return true
+  }
+}
+
 export const useEditorStore = defineStore('editor', {
   state: () => ({
     isLoading: true,
@@ -49,6 +59,11 @@ export const useEditorStore = defineStore('editor', {
     // base ni en el historial, y no cambia el volumen
     hiddenBlockIds: [],
 
+    // Cotas puestas a mano en el pozo actual y herramienta Medir
+    cotas: [],
+    measureMode: false,
+    measureAxis: '', // '' directa | 'x' | 'y' | 'z'
+
     // Configuración de visualización 3D
     viewMode: 'solido', // 'solido' | 'rayosX' | 'alambrico'
     modelMode: 'edicion', // 'edicion' (bloques individuales) | 'solidoFinal' (malla combinada CSG)
@@ -56,7 +71,7 @@ export const useEditorStore = defineStore('editor', {
     volumenMallaCSG: null,
     csgError: null,
     csgPending: false, // hay un cálculo 3D en curso
-    showDimensions: true,
+    showDimensions: readShowDimensions(),
     showGrid: true,
     snapToGrid: true,
     gridStep: 0.25, // metros
@@ -304,6 +319,7 @@ export const useEditorStore = defineStore('editor', {
       this.selectedPozoId = null
       this.selectedBlockId = null
       this.bloques = []
+      this.cotas = []
       this.resetHistory()
       this.updateVolumenReal() // sin piezas: no dejar el volumen del pozo anterior
     },
@@ -351,8 +367,15 @@ export const useEditorStore = defineStore('editor', {
         b.volumen_individual = def ? def.calculateVolume(b) : (Number(b.volumen_individual) || 0)
         list.push(b)
       }
+      const cotas = await query('SELECT * FROM cotas WHERE pozo_id = ? ORDER BY id ASC', [pozoId])
       this.selectedPozoId = pozoId
       this.bloques = list
+      this.cotas = cotas.map(c => ({
+        id: c.id,
+        a: [Number(c.ax), Number(c.ay), Number(c.az)],
+        b: [Number(c.bx), Number(c.by), Number(c.bz)],
+        eje: c.eje || ''
+      }))
       // Al cambiar de pozo, la selección anterior pertenece a otro pozo
       this.ensureValidSelection()
       // El volumen del pozo anterior no vale para este: queda "calculando"
@@ -489,6 +512,52 @@ export const useEditorStore = defineStore('editor', {
       this.saveBloquesToDb()
     },
 
+    // --- Cotas ---
+
+    setShowDimensions(visible) {
+      this.showDimensions = visible
+      if (!visible) this.measureMode = false
+      try {
+        localStorage.setItem(DIMENSIONS_KEY, visible ? 'visibles' : 'ocultas')
+      } catch {
+        // sin almacenamiento: solo dura esta sesión
+      }
+    },
+
+    toggleMeasureMode() {
+      this.measureMode = !this.measureMode
+      // Medir con las cotas ocultas no tendría sentido
+      if (this.measureMode && !this.showDimensions) this.setShowDimensions(true)
+    },
+
+    /** Guarda una cota entre dos puntos [x, y, z] de la bodega. */
+    async addCota(a, b, eje = '') {
+      const pozoId = this.selectedPozoId
+      if (!this.dbReady || !pozoId) return
+      const { lastInsertRowid } = await run(
+        'INSERT INTO cotas (pozo_id, ax, ay, az, bx, by, bz, eje) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [pozoId, ...a, ...b, eje])
+      if (this.selectedPozoId === pozoId) this.cotas.push({ id: lastInsertRowid, a, b, eje })
+    },
+
+    async deleteCota(id) {
+      this.cotas = this.cotas.filter(c => c.id !== id)
+      if (this.dbReady) await run('DELETE FROM cotas WHERE id = ?', [id])
+    },
+
+    async clearCotas() {
+      const pozoId = this.selectedPozoId
+      const ok = await confirmDialog({
+        title: 'Borrar cotas',
+        message: 'Se borrarán todas las cotas puestas a mano en este pozo.\n\nNo se puede deshacer.',
+        confirmText: 'Borrar',
+        danger: true
+      })
+      if (!ok || this.selectedPozoId !== pozoId) return
+      this.cotas = []
+      await run('DELETE FROM cotas WHERE pozo_id = ?', [pozoId])
+    },
+
     // --- Estirar (arrastre de un tirador) ---
     // Mientras dura el arrastre no se registra historial: todo es un solo paso.
 
@@ -611,6 +680,7 @@ export const useEditorStore = defineStore('editor', {
       await this.backupBeforeDelete(`Antes de eliminar el buque "${buque.nombre}"`)
       await batch([
         { sql: 'DELETE FROM bloques WHERE pozo_id IN (SELECT id FROM pozos WHERE buque_id = ?)', params: [id] },
+        { sql: 'DELETE FROM cotas WHERE pozo_id IN (SELECT id FROM pozos WHERE buque_id = ?)', params: [id] },
         { sql: 'DELETE FROM pozos WHERE buque_id = ?', params: [id] },
         { sql: 'DELETE FROM buques WHERE id = ?', params: [id] }
       ])
@@ -635,6 +705,7 @@ export const useEditorStore = defineStore('editor', {
       await this.backupBeforeDelete(`Antes de eliminar el pozo "${pozo.nombre}"`)
       await batch([
         { sql: 'DELETE FROM bloques WHERE pozo_id = ?', params: [id] },
+        { sql: 'DELETE FROM cotas WHERE pozo_id = ?', params: [id] },
         { sql: 'DELETE FROM pozos WHERE id = ?', params: [id] }
       ])
       await this.loadPozos(this.selectedBuqueId)

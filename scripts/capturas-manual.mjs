@@ -190,6 +190,34 @@ try {
   await recorte('respaldos', fn(`() => (${porTexto('Respaldos y copias')})().closest('.absolute')`), 8)
   await page.click('[aria-label="Respaldos y copias"]')
 
+  // Cotas y Medir (capítulo 7): un pozo que se angosta hacia el fondo
+  await store(async (s) => {
+    await s.createPozo({ nombre: 'Pozo con fondo inclinado', notas: '' })
+    const set = (b, valores) => Object.entries(valores).forEach(([k, v]) => s.updateBlockProperty(b.id, k, v))
+    set(s.bloques[0], { largo: 8, ancho: 5, alto: 3, pos_y: 2 })
+    await s.addBlockFromPalette('trapezoide')
+    set(s.selectedBlock, { largo: 8, base_a: 5, base_b: 1, alto: 2, pos_x: 0, pos_y: 0, pos_z: 0 })
+    s.modelMode = 'solidoFinal'
+    s.viewMode = 'solido'
+  })
+  await listo()
+  await recorte('cotas', visor)
+
+  await store(async (s) => {
+    // Retiro del fondo (solo manga) y altura del costado (solo puntal)
+    await s.addCota([4, 2, -2.5], [4, 0, -0.5], 'z')
+    await s.addCota([4, 5, -2.5], [4, 2, -2.5], 'y')
+    s.toggleMeasureMode()
+  })
+  await pausa(800)
+  await recorte('medir', visor)
+  await store(async (s) => {
+    s.toggleMeasureMode()
+    s.modelMode = 'edicion'
+    await s.selectPozo(s.pozos.find(p => p.nombre === 'Pozo de ejemplo').id)
+  })
+  await listo()
+
   // Teléfono vertical (capítulo 3)
   await page.setViewport(TELEFONO)
   await page.reload({ waitUntil: 'networkidle0' })

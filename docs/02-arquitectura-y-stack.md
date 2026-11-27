@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS bloques (
 - **v2:** el factor de captura pasa a ser del buque; se toma el que tenía su primer pozo.
 - **v3:** las piezas tienen la columna `fijada`.
 - **v4:** columnas `desvio_largo` y `desvio_ancho` (corrimiento del vértice de la piramidal; 0 en las piezas anteriores).
+- **v5:** tabla `cotas` (`pozo_id`, dos puntos `ax…bz` en coordenadas de la bodega y `eje`), para las cotas puestas con la herramienta Medir.
 - Una base de una versión más nueva de la aplicación se rechaza, para no dañarla.
 
 ---
@@ -166,6 +167,8 @@ cubicador/
 │   │   ├── AppVersion.vue       # Versión y fecha de compilación
 │   │   ├── BackupsPanel.vue     # Exportar/importar y copias automáticas
 │   │   ├── BottomNav.vue        # Barra inferior del modo compacto
+│   │   ├── DimensionOverlay.vue # Cotas dibujadas sobre el visor (SVG)
+│   │   ├── MeasurePanel.vue     # Panel de la herramienta Medir
 │   │   ├── ModelModeToggle.vue  # Edición / Vista previa
 │   │   ├── MoreMenu.vue         # Menú "Más" del modo compacto
 │   │   ├── PanelSheet.vue       # Panel deslizable (hoja inferior o cajón lateral)
@@ -180,6 +183,7 @@ cubicador/
 │   │   ├── csgService.js        # Operaciones booleanas BSP, volumen y snap
 │   │   ├── db.js                # Cliente de la base (worker), importación y exportación
 │   │   ├── dialog.js            # API de los diálogos (confirmDialog, promptDialog…)
+│   │   ├── dimensions.js        # Cotas automáticas, cotas a mano e imán de Medir
 │   │   ├── geometryCatalog.js   # Las 10 figuras navales, fórmulas y mallas
 │   │   ├── install.js           # Instalación de la PWA
 │   │   ├── layout.js            # Tamaño de pantalla y panel abierto (diseño adaptable)

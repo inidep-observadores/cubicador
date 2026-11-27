@@ -349,9 +349,34 @@ Para ubicar una pieza con precisión de centímetros, apagá el imán o escribí
 
 > El imán usa el "contorno" rectangular de cada pieza. Con caras inclinadas o piezas giradas en ángulos que no son de 90°, puede quedar un pequeño hueco: en ese caso, ajustá los valores a mano.
 
-### Ventana de cotas
+### Cotas: ver las medidas sobre el dibujo
 
-En computadora y tablet, arriba a la derecha del visor aparece **Cotas del bloque seleccionado**, con las medidas de la pieza. Se pueden editar directamente ahí. Se muestra u oculta con el botón de la **regla** (en tablet y teléfono, en **Más**).
+Las **cotas** son líneas con flechas que muestran cuánto mide cada cosa, como en un plano. Se muestran u ocultan con el botón de la **regla** de la barra superior (en tablet y teléfono, **Más → Cotas y medidas en el visor**). La app recuerda tu elección.
+
+La app las dibuja sola:
+
+- En **Edición**: largo, ancho y alto de la **pieza seleccionada**.
+- En **Vista previa**: las medidas del **pozo terminado**. Las líneas de color más intenso son las medidas totales; las más claras, las **parciales** entre quiebres (por ejemplo, dónde empieza a cerrarse el fondo).
+
+![Cotas automáticas en Vista previa: totales y parciales de un pozo que se angosta hacia el fondo](img/manual/cotas.webp)
+
+Las cotas se acomodan del lado que estás mirando. Si una medida no entra en la pantalla porque quedó muy chica o de punta, no se dibuja: acercá o girá la vista. Cuando un eje tiene muchos quiebres, se muestra solo el total para que no se amontonen.
+
+Con las cotas a la vista, en computadora y tablet también aparece arriba a la derecha la ventana **Cotas del bloque seleccionado**, donde se pueden editar las medidas de la pieza.
+
+### Medir: poner tus propias cotas
+
+Para acotar justo lo que querés, tocá **Medir** (ícono de regla y lápiz en la barra flotante, o tecla **D**):
+
+1. Elegí qué medir: **Directa** (la línea recta entre los dos puntos), **Eslora** (solo a lo largo), **Puntal** (solo en altura) o **Manga** (solo a lo ancho).
+2. Tocá el **primer punto** y después el **segundo**. El punto se engancha solo a las **esquinas** y **aristas** cercanas; un círculo blanco muestra dónde.
+3. La cota queda dibujada en verde y anotada en la lista del panel (en el teléfono, tocá **Cotas** para verla).
+
+![Herramienta Medir: dos cotas puestas a mano y la lista en el panel](img/manual/medir.webp)
+
+Se salen con **Esc** o con la **×**. Para borrar una cota usá el tacho de la lista, o **Borrar todas**.
+
+> Las cotas puestas a mano se guardan con el pozo, pero **no siguen a las piezas**: si después movés o cambiás una pieza, borrá la cota y medí de nuevo. Borrarlas no se puede deshacer.
 
 ### La lista de piezas
 
@@ -479,6 +504,7 @@ Casi todo se puede **deshacer**: agregar, borrar, mover, cambiar medidas, fijar�
 | **R** | Modo Rotar |
 | **S** | Modo Estirar |
 | **M** | Abrir o cerrar Espejo; después, **X**, **Y** o **Z** eligen el eje |
+| **D** | Abrir o cerrar Medir (**Esc** descarta el punto elegido o sale) |
 | **Espacio** | Alternar entre Mover y Rotar |
 | **Supr** | Eliminar la pieza seleccionada |
 | **F1** | Abrir este manual |
@@ -583,6 +609,7 @@ Si fue una pieza, usá **Deshacer**. Si fue un buque o un pozo, recuperalo desde
 | **Sumar / Restar** | Rol de una pieza: agrega espacio al pozo o lo quita |
 | **Fijar** | Proteger una pieza para que no se mueva ni cambie de medidas |
 | **Espejo** | Invertir una pieza sobre un eje, sin moverla de lugar |
+| **Cota** | Línea con flechas que muestra una medida sobre el dibujo |
 | **Imán** | Ayuda que acomoda las piezas en la cuadrícula y las pega a otras cercanas |
 | **Vista previa** | Modo que muestra el pozo final como un único sólido |
 | **Respaldo (.sqlite)** | Archivo con todos los datos, para guardar o pasar a otro equipo |

@@ -6,7 +6,7 @@ import { getBlockBounds } from './csgService.js'
  * La versión se guarda en `PRAGMA user_version`; las bases anteriores a este
  * mecanismo tienen versión 0.
  */
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 // Figuras cuya malla se giró 90° en planta en la versión 1 (antes el largo iba sobre Z)
 const FIGURAS_GIRADAS_V1 = ['trapezoide', 'trapezoide_conico_1', 'trapezoide_conico_2']
@@ -73,6 +73,7 @@ export function migrateDatabase(db) {
     if (version < 2) migrarAV2(db)
     if (version < 3) migrarAV3(db)
     if (version < 4) migrarAV4(db)
+    if (version < 5) migrarAV5(db)
     setSchemaVersion(db)
     db.run('COMMIT')
   } catch (err) {
@@ -112,6 +113,20 @@ function migrarAV4(db) {
   for (const columna of ['desvio_largo', 'desvio_ancho']) {
     if (!columnas.includes(columna)) db.run(`ALTER TABLE bloques ADD COLUMN ${columna} REAL DEFAULT 0`)
   }
+}
+
+/** V5: cotas puestas a mano, por pozo. */
+function migrarAV5(db) {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS cotas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pozo_id INTEGER NOT NULL,
+      ax REAL NOT NULL, ay REAL NOT NULL, az REAL NOT NULL,
+      bx REAL NOT NULL, by REAL NOT NULL, bz REAL NOT NULL,
+      eje TEXT DEFAULT '', -- '' distancia directa; 'x', 'y' o 'z' solo sobre ese eje
+      FOREIGN KEY (pozo_id) REFERENCES pozos (id) ON DELETE CASCADE
+    );
+  `)
 }
 
 function leerBloques(db) {

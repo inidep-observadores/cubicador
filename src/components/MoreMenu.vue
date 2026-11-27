@@ -18,7 +18,12 @@
       </div>
       <label class="flex items-center justify-between gap-3 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5">
         <span class="flex items-center gap-2 text-slate-200"><Ruler class="w-4 h-4 text-sky-400" /> Cotas y medidas en el visor</span>
-        <input type="checkbox" v-model="store.showDimensions" class="w-4 h-4 accent-sky-500" />
+        <input
+          type="checkbox"
+          :checked="store.showDimensions"
+          @change="store.setShowDimensions($event.target.checked)"
+          class="w-4 h-4 accent-sky-500"
+        />
       </label>
       <label class="flex items-center justify-between gap-3 bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2.5">
         <span class="flex items-center gap-2 text-slate-200"><Magnet class="w-4 h-4 text-amber-400" /> Imán: ajustar a la cuadrícula y a otras piezas</span>
