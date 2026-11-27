@@ -1,0 +1,2 @@
+# El PDF del manual se compara byte a byte en las pruebas
+*.pdf binary

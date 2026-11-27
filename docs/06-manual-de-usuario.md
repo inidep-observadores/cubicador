@@ -158,6 +158,8 @@ En la barra flotante de abajo del visor:
 
 El botón redondo **?**, arriba a la derecha del visor, abre este manual desde cualquier pantalla.
 
+Para **imprimir el manual** o tenerlo fuera de la app, abrilo y tocá **PDF**, arriba: se descarga un documento A4 con índice y páginas numeradas. También funciona sin conexión.
+
 Arriba a la izquierda del visor está el panel **Ayuda**, con los controles del mouse y los colores de los ejes. Se pliega o se abre con un clic, y la app recuerda la preferencia.
 
 ---

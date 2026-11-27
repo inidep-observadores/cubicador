@@ -1,19 +1,11 @@
 import { Marked } from 'marked'
 import fuente from '../../docs/06-manual-de-usuario.md?raw'
+import { slug } from './slug.js'
 
 /**
  * Manual de usuario dentro de la app. La fuente es la misma que en /docs, así que
  * hay un solo texto que mantener.
  */
-
-// Igual que GitHub: así funcionan los enlaces del índice del manual
-export function slug(texto) {
-  return texto
-    .toLowerCase()
-    .trim()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/\s/g, '-')
-}
 
 const escapar = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 

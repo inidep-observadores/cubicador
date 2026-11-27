@@ -23,6 +23,16 @@
           <ListTree class="w-3.5 h-3.5" />
           Índice
         </button>
+        <a
+          :href="pdfUrl"
+          download="Manual-Cubicacion-3D.pdf"
+          aria-label="Descargar el manual en PDF"
+          title="Descargar el manual en PDF"
+          class="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition"
+        >
+          <Download class="w-3.5 h-3.5" />
+          PDF
+        </a>
         <button
           ref="closeRef"
           @click="closeManual"
@@ -46,10 +56,12 @@
 
 <script setup>
 import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { BookOpen, ListTree, X } from 'lucide-vue-next'
+import { BookOpen, Download, ListTree, X } from 'lucide-vue-next'
 import { layout, openManual, closeManual } from '../services/layout'
 import { dialogState } from '../services/dialog'
 import { manualHtml } from '../services/manual'
+// Se genera con `npm run manual:pdf` desde el mismo texto que se ve acá
+import pdfUrl from '../../docs/manual-de-usuario.pdf?url'
 
 const bodyRef = ref(null)
 const closeRef = ref(null)

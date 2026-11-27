@@ -46,7 +46,9 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,wasm}'],
+        // El PDF del manual también queda disponible sin conexión
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,wasm,pdf}'],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         // Workers de SQLite WASM que esta app no usa (modo "opfs" y API Worker1):
         // se publican porque la librería los referencia, pero no hace falta cachearlos

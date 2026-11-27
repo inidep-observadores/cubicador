@@ -1,0 +1,154 @@
+/* Maquetado del PDF del manual: A4, con encabezado y pie en cada página */
+@page {
+  size: A4;
+  margin: 20mm 18mm 18mm;
+
+  @top-left {
+    content: "Cubicación 3D de Pozos de Pesca";
+    font: 600 8pt 'Segoe UI', system-ui, sans-serif;
+    color: #0369a1;
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+    border-bottom: 0.4pt solid #cbd5e1;
+  }
+  @top-right {
+    content: "Manual de usuario";
+    font: 8pt 'Segoe UI', system-ui, sans-serif;
+    color: #64748b;
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+    border-bottom: 0.4pt solid #cbd5e1;
+  }
+  @bottom-left {
+    content: "Versión " var(--version);
+    font: 8pt 'Segoe UI', system-ui, sans-serif;
+    color: #94a3b8;
+    vertical-align: top;
+    padding-top: 4mm;
+    border-top: 0.4pt solid #cbd5e1;
+  }
+  @bottom-right {
+    content: "Página " counter(page) " de " counter(pages);
+    font: 8pt 'Segoe UI', system-ui, sans-serif;
+    color: #475569;
+    vertical-align: top;
+    padding-top: 4mm;
+    border-top: 0.4pt solid #cbd5e1;
+  }
+}
+
+/* La portada va a sangre, sin encabezado ni pie */
+@page :first {
+  margin: 0;
+  @top-left { content: none; border: 0; }
+  @top-right { content: none; border: 0; }
+  @bottom-left { content: none; border: 0; }
+  @bottom-right { content: none; border: 0; }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  margin: 0;
+  font: 10pt/1.45 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: #1e293b;
+}
+
+/* Portada */
+.portada {
+  width: 210mm;
+  height: 296.5mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8mm;
+  padding: 25mm;
+  text-align: center;
+  color: #f8fafc;
+  background: #0f172a;
+  break-after: page;
+}
+.portada img { width: 34mm; height: 34mm; }
+.portada .titulo { font-size: 30pt; font-weight: 700; line-height: 1.15; margin: 0; }
+.portada .subtitulo { font-size: 15pt; color: #38bdf8; margin: 0; }
+.portada .linea { width: 40mm; border-top: 1.5pt solid #38bdf8; }
+.portada .datos { font-size: 10pt; color: #94a3b8; margin: 0; }
+
+/* Cada capítulo empieza en una página nueva */
+h2 {
+  break-before: page;
+  margin: 0 0 5mm;
+  /* El relleno de arriba evita que Chrome repita el título del capítulo en los
+     marcadores del PDF; la prueba de maquetado lo comprueba */
+  padding: 1mm 0 2.5mm;
+  border-bottom: 1.5pt solid #0284c7;
+  font-size: 18pt;
+  line-height: 1.25;
+  color: #0f172a;
+}
+h3 { margin: 6mm 0 2mm; font-size: 12.5pt; color: #075985; }
+h4 { margin: 4mm 0 1.5mm; font-size: 11pt; color: #0f172a; }
+h2, h3, h4 { break-after: avoid; break-inside: avoid; }
+
+p, ul, ol, table, blockquote, pre { margin: 0 0 3mm; }
+p, li { orphans: 3; widows: 3; }
+ul, ol { padding-left: 6mm; }
+li { margin-bottom: 1mm; break-inside: avoid; }
+/* Un párrafo que presenta una lista, tabla o imagen no queda solo al pie */
+p:has(+ ul), p:has(+ ol), p:has(+ table), p:has(+ blockquote), p:has(+ p img) { break-after: avoid; }
+
+hr { display: none; }
+a { color: #0369a1; text-decoration: none; }
+
+/* Introducción e índice */
+.introduccion { font-size: 11.5pt; }
+h2#índice { break-before: auto; margin-top: 8mm; }
+h2#índice + ol { columns: 1; line-height: 1.5; }
+h2#índice + ol li { margin: 0; border-bottom: 0.4pt dotted #cbd5e1; padding: 1mm 0; }
+h2#índice + ol a { color: #0f172a; }
+
+table { width: 100%; border-collapse: collapse; font-size: 9pt; line-height: 1.35; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+table.corta { break-inside: avoid; }
+th, td { border: 0.5pt solid #cbd5e1; padding: 1mm 2.5mm; text-align: left; vertical-align: top; }
+th { background: #e0f2fe; color: #0c4a6e; font-weight: 600; }
+tbody tr:nth-child(even) { background: #f8fafc; }
+
+blockquote {
+  padding: 2.5mm 4mm;
+  border-left: 2.5pt solid #0284c7;
+  background: #f0f9ff;
+  break-inside: avoid;
+}
+blockquote > :last-child { margin-bottom: 0; }
+
+code, kbd, pre {
+  font-family: Consolas, 'Cascadia Mono', monospace;
+  font-size: 0.92em;
+  background: #f1f5f9;
+  border-radius: 2pt;
+  padding: 0 1mm;
+}
+pre { padding: 3mm 4mm; white-space: pre-wrap; break-inside: avoid; }
+pre code { padding: 0; font-size: 1em; }
+
+p:has(> img), p.imagen { text-align: center; break-inside: avoid; }
+img {
+  max-width: 100%;
+  height: auto;
+  max-height: 82mm;
+  object-fit: contain;
+  border-radius: 4pt;
+}
+p > img { border: 0.5pt solid #cbd5e1; }
+/* Con ancho fijado (capturas de paneles y de teléfono) el alto puede achicarlas */
+img[width] { width: auto; max-width: min(100%, var(--ancho)); max-height: 78mm; }
+
+/* Apartados que, con su tabla y su dibujo, quedan mejor en una página propia */
+h3#los-ejes-hacia-dónde-es-cada-cosa,
+h3#en-tablet-y-teléfono { break-before: page; margin-top: 0; }
+img[width] { display: block; margin: 0 auto 3mm; break-inside: avoid; }

@@ -160,7 +160,9 @@ cubicador/
 ├── docs/                        # Documentación técnica
 ├── public/                      # Íconos de la PWA (generados por scripts/generar-iconos.mjs)
 ├── scripts/
-│   └── generar-iconos.mjs       # npm run icons
+│   ├── capturas-manual.mjs      # npm run capturas
+│   ├── generar-iconos.mjs       # npm run icons
+│   └── manual-pdf/              # npm run manual:pdf (generador, estilos y huella)
 ├── src/
 │   ├── components/
 │   │   ├── AppDialog.vue        # Diálogos de confirmación y avisos
@@ -194,6 +196,7 @@ cubicador/
 │   │   ├── pwaUpdate.js         # Actualización automática de la app
 │   │   ├── migrations.js        # Validación y versionado del esquema
 │   │   ├── schema.js            # Tablas y datos de ejemplo
+│   │   ├── slug.js              # Anclas del manual, compartidas con el PDF
 │   │   ├── stretch.js           # Modo Estirar: tiradores por figura, imán y medidas
 │   │   ├── sqliteCompat.js      # Adaptador del motor para el esquema y las migraciones
 │   │   └── storageSafety.js     # Persistencia, candado de pestaña y copias
@@ -212,6 +215,14 @@ cubicador/
 ---
 
 ## 8. Publicación
+
+### PDF del manual
+- `docs/manual-de-usuario.pdf` se genera con `npm run manual:pdf` desde `docs/06-manual-de-usuario.md`, con Chrome o Edge instalados (131 o posterior). La app lo ofrece en el botón **PDF** del manual y lo guarda para usarlo sin conexión.
+- Junto a él, `manual-de-usuario.pdf.json` guarda la huella del texto, las imágenes, el maquetado y la versión. `npm test` falla si algo cambió sin regenerar el PDF.
+- Orden al cambiar la interfaz: `npm run capturas`, `npm run manual:pdf`, `npm test`.
+- `npm test` también revisa el maquetado leyendo el PDF con `pdfjs-dist` (`scripts/manual-pdf/revisar.mjs`): capítulos en página nueva, páginas casi vacías, títulos al pie, márgenes, tamaño del texto, encabezado y numeración, enlaces del índice y marcadores.
+- Para probar un cambio de estilos sin tocar el PDF publicado: `node scripts/manual-pdf/generar.mjs salida.pdf`.
+- La prueba no juzga la estética ni la legibilidad de las capturas: conviene mirar el PDF después de cambios grandes.
 
 - `npm run build` genera la app en `dist/`, lista para cualquier hosting estático.
 - Para publicarla en un subdirectorio (por ejemplo `https://servidor/cubicador/`), definir la ruta base al compilar. En PowerShell:
