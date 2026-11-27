@@ -5,12 +5,13 @@
 
     <DimensionOverlay :shapes="overlayShapes" :markers="overlayMarkers" />
 
-    <!-- Medir: en escritorio arriba a la derecha; en el teléfono sobre los controles -->
+    <!-- Medir: en escritorio arriba a la derecha (junto al botón de ayuda); en el
+         teléfono sobre los controles -->
     <MeasurePanel
       v-if="store.measureMode"
       :pending="!!measureStart"
       class="absolute z-20"
-      :class="layout.isPhone ? 'bottom-16 left-2 right-2' : (layout.isCompact ? 'top-2 right-2 w-60' : 'top-4 right-4 w-64')"
+      :class="layout.isPhone ? 'bottom-16 left-2 right-2' : (layout.isCompact ? 'top-2 right-[3.25rem] w-60' : 'top-4 right-14 w-64')"
     />
 
     <!-- Medida en vivo mientras se estira -->
@@ -81,7 +82,7 @@
     <div
       v-if="store.showDimensions && !store.measureMode && store.selectedBlock && selectedDef && !layout.isPhone"
       class="absolute z-20 bg-slate-900/95 backdrop-blur border border-slate-800 rounded-xl shadow-lg font-mono text-xs text-slate-300 space-y-1"
-      :class="layout.isCompact ? 'top-2 right-2 p-2' : 'top-4 right-4 p-3'"
+      :class="layout.isCompact ? 'top-2 right-[3.25rem] p-2' : 'top-4 right-14 p-3'"
     >
       <div class="text-[10px] font-bold uppercase tracking-wider text-sky-400 font-sans mb-1">
         {{ layout.isCompact ? 'Cotas' : 'Cotas del Bloque Seleccionado' }}

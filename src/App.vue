@@ -78,6 +78,7 @@
               </button>
             </div>
           </div>
+          <HelpButton />
         </main>
 
         <!-- Inspector Derecho de Propiedades (escritorio) -->
@@ -139,6 +140,7 @@ import Viewport3D from './components/Viewport3D.vue'
 import PropertiesPanel from './components/PropertiesPanel.vue'
 import AppDialog from './components/AppDialog.vue'
 import ManualDialog from './components/ManualDialog.vue'
+import HelpButton from './components/HelpButton.vue'
 import RecordForm from './components/RecordForm.vue'
 
 const store = useEditorStore()

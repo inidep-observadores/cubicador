@@ -4,7 +4,7 @@
 
 No hace falta saber de diseño 3D. Este manual explica todo desde cero, con un ejemplo completo que se puede seguir paso a paso.
 
-> **Dónde leer este manual:** dentro de la app, en el botón **Manual** de la barra superior (en tablet y teléfono, en **Más → Manual de uso**), o con la tecla **F1**.
+> **Dónde leer este manual:** dentro de la app, con el botón redondo **?** de la esquina superior derecha del visor, en cualquier pantalla. También con el botón **Manual** de la barra superior (en tablet y teléfono, en **Más → Manual de uso**) o la tecla **F1**.
 
 ## Índice
 
@@ -154,7 +154,9 @@ En la barra flotante de abajo del visor:
 - **Frente**: desde proa, mirando hacia popa.
 - **Lateral**: desde babor, mirando el largo del pozo.
 
-### Panel de ayuda
+### Ayuda
+
+El botón redondo **?**, arriba a la derecha del visor, abre este manual desde cualquier pantalla.
 
 Arriba a la izquierda del visor está el panel **Ayuda**, con los controles del mouse y los colores de los ejes. Se pliega o se abre con un clic, y la app recuerda la preferencia.
 
