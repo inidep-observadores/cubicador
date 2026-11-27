@@ -455,7 +455,7 @@ Al final, el volumen debe dar **85,87 m³**.
 
 ### Guardar la vista como imagen
 
-En **Vista previa**, debajo del botón **?** aparece el botón de **Exportar imagen** (verde, con una flecha hacia abajo). La app pregunta el fondo y descarga un archivo **PNG**:
+En **Vista previa**, debajo del botón **?** aparece el botón de **Exportar imagen** (verde, con una flecha hacia abajo). Primero elegís qué incluir, marcando o desmarcando **Piso (cuadrícula)** y **Ejes** (las dos líneas largas que se cruzan en el origen, con sus flechas de color). La app recuerda tu elección. Después tocás el fondo y se descarga un archivo **PNG**:
 
 - **Fondo claro:** blanco con trazos oscuros, para imprimir o pegar en un informe.
 - **Fondo oscuro:** con los mismos colores que la pantalla.

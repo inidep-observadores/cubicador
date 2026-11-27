@@ -13,8 +13,18 @@
     >
       <h2 id="export-image-title" class="text-base font-bold text-slate-100">Exportar imagen</h2>
       <p class="text-sm text-slate-300">
-        Se guarda un PNG con la vista actual del pozo: misma cámara, zoom, estilo y cotas. ¿Con qué fondo?
+        Se guarda un PNG con la vista actual del pozo: misma cámara, zoom, estilo y cotas.
       </p>
+
+      <fieldset class="space-y-1">
+        <legend class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Incluir en la imagen</legend>
+        <label v-for="e in EXTRAS" :key="e.id" class="flex items-center gap-2 py-1 text-sm text-slate-200 cursor-pointer">
+          <input type="checkbox" v-model="include[e.id]" class="w-4 h-4 accent-sky-500" />
+          {{ e.label }}
+        </label>
+      </fieldset>
+
+      <p class="text-sm text-slate-300">Elegí el fondo para descargarla:</p>
 
       <div class="grid grid-cols-2 gap-3">
         <button
@@ -22,7 +32,7 @@
           :key="o.id"
           :ref="el => { if (o.id === 'claro') firstOption = el }"
           type="button"
-          @click="emit('pick', o.id)"
+          @click="pick(o.id)"
           class="rounded-lg border border-slate-700 hover:border-sky-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 p-2 space-y-2 transition"
         >
           <span class="flex h-14 items-center justify-center rounded border border-slate-700" :style="{ background: o.theme.background }" aria-hidden="true">
@@ -46,10 +56,36 @@
 </template>
 
 <script setup>
-import { onMounted, onBeforeUnmount } from 'vue'
+import { reactive, onMounted, onBeforeUnmount } from 'vue'
 import { IMAGE_THEMES } from '../services/exportImage'
 
 const emit = defineEmits(['pick', 'close'])
+
+const EXTRAS = [
+  { id: 'grid', label: 'Piso (cuadrícula)' },
+  { id: 'axes', label: 'Ejes' }
+]
+
+// La elección se recuerda para la próxima exportación
+const KEY = 'cubicacion_imagen'
+function readChoice() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY))
+    return { grid: saved?.grid !== false, axes: saved?.axes !== false }
+  } catch {
+    return { grid: true, axes: true }
+  }
+}
+const include = reactive(readChoice())
+
+function pick(theme) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(include))
+  } catch {
+    // sin almacenamiento: solo vale para esta exportación
+  }
+  emit('pick', theme, { ...include })
+}
 
 const OPTIONS = [
   { id: 'claro', label: 'Fondo claro', theme: IMAGE_THEMES.claro },

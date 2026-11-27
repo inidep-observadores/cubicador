@@ -419,7 +419,7 @@ onBeforeUnmount(() => {
   clearScene()
   disposeCaches()
   for (const decor of [screenDecor, lightDecor]) {
-    decor?.children.forEach(o => { o.geometry.dispose(); o.material.dispose() })
+    decor?.traverse(o => { o.geometry?.dispose(); o.material?.dispose() })
   }
   transformControls?.dispose()
   orbitControls?.dispose()
@@ -1301,13 +1301,30 @@ function resetMeasure() {
 // ---------------------------------------------------------------------------
 // Exportar imagen
 // ---------------------------------------------------------------------------
+/**
+ * Piso y ejes por separado, para poder incluir uno sin el otro en la imagen.
+ * Hijos: [0] la cuadrícula; [1] los ejes (las líneas largas por el origen y las
+ * flechas de color, que solas quedan casi siempre tapadas por el pozo).
+ */
 function floorDecor(theme) {
+  const [centerColor, lineColor] = theme.grid
+  const centerLines = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints(
+      [[-20, 0, 0], [20, 0, 0], [0, 0, -20], [0, 0, 20]].map(p => new THREE.Vector3(...p))
+    ),
+    new THREE.LineBasicMaterial({ color: centerColor })
+  )
+  // Un pelo por encima de la cuadrícula, que si no las tapa
+  centerLines.position.y = 0.003
+  centerLines.renderOrder = 1
+  const arrows = new THREE.AxesHelper(3)
+  arrows.position.set(0, 0.01, 0)
+  arrows.setColors(...theme.axes.map(c => new THREE.Color(c)))
+
+  const axes = new THREE.Group()
+  axes.add(centerLines, arrows)
   const group = new THREE.Group()
-  group.add(new THREE.GridHelper(40, 80, ...theme.grid))
-  const axes = new THREE.AxesHelper(3)
-  axes.position.set(0, 0.01, 0)
-  axes.setColors(...theme.axes.map(c => new THREE.Color(c)))
-  group.add(axes)
+  group.add(new THREE.GridHelper(40, 80, lineColor, lineColor), axes)
   return group
 }
 
@@ -1328,7 +1345,7 @@ function lightMaterials(viewMode) {
  * Pinta en un canvas aparte lo que se ve (misma cámara, estilo y cotas), sin
  * paneles ni botones. Todo ocurre en el mismo cuadro: la pantalla no parpadea.
  */
-function snapshot(themeId) {
+function snapshot(themeId, include) {
   const theme = IMAGE_THEMES[themeId]
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight
@@ -1342,6 +1359,7 @@ function snapshot(themeId) {
   const background = scene.background
   const fogColor = scene.fog.color.clone()
   const restore = []
+  let decor = screenDecor
   try {
     if (themeId === 'claro') {
       scene.background = new THREE.Color(theme.background)
@@ -1349,6 +1367,7 @@ function snapshot(themeId) {
       lightDecor ||= floorDecor(theme)
       scene.add(lightDecor)
       screenDecor.visible = false
+      decor = lightDecor
       const materials = lightMaterials(store.viewMode)
       for (const [objects, material] of [[csgMeshGroup.children, materials.solid], [edgesGroup.children, materials.edges]]) {
         for (const object of objects) {
@@ -1358,6 +1377,10 @@ function snapshot(themeId) {
         }
       }
     }
+    const [grid, axes] = decor.children
+    grid.visible = include.grid
+    axes.visible = include.axes
+    restore.push(() => { grid.visible = axes.visible = true })
     renderer.setPixelRatio(scale)
     renderer.render(scene, camera)
     // Hay que copiar antes de ceder el control: el navegador descarta el cuadro
@@ -1377,7 +1400,7 @@ function snapshot(themeId) {
   return output
 }
 
-async function exportImage(themeId) {
+async function exportImage(themeId, include) {
   exportOpen.value = false
   // Recién cambiado de modo, el sólido puede estar calculándose todavía
   if (!csgMeshGroup.children.length) {
@@ -1387,7 +1410,7 @@ async function exportImage(themeId) {
   try {
     const buque = store.buques.find(b => b.id === store.selectedBuqueId)
     const pozo = store.pozos.find(p => p.id === store.selectedPozoId)
-    await downloadCanvas(snapshot(themeId), imageFileName(buque?.nombre, pozo?.nombre))
+    await downloadCanvas(snapshot(themeId, include), imageFileName(buque?.nombre, pozo?.nombre))
   } catch (error) {
     await alertDialog({ title: 'No se pudo exportar', message: error.message })
   }

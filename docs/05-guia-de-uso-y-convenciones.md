@@ -82,6 +82,7 @@ La pieza seleccionada muestra tiradores (puntos ámbar) sobre las caras que se p
 
 ### Exportar imagen (PNG)
 - Solo en Vista previa. Misma cámara, estilo y cotas que en pantalla; sin paneles ni botones. Fondo claro u oscuro (colores en `exportImage.js`).
+- Piso y ejes son opcionales (se recuerda en `cubicacion_imagen` de localStorage).
 - Resolución de 2× a 3× la del visor, con un máximo de 4096 px de lado.
 
 ---
